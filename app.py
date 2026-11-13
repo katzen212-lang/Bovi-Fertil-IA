@@ -87,8 +87,17 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.nombre_completo = ""
 
+# Botón de emergencia en la barra lateral para forzar la pantalla de login si se queda guardada la sesión
+with st.sidebar:
+    st.markdown("### 🛠️ Control de Sesión")
+    if st.button("🔄 Forzar Pantalla de Login"):
+        st.session_state.logged_in = False
+        st.session_state.username = ""
+        st.session_state.nombre_completo = ""
+        st.rerun()
+
 # ==========================================
-# PANTALLA DE AUTENTICACIÓN PROFESIONAL (LOGIN / REGISTRO)
+# PANTALLA DE AUTENTICACIÓN (LOGIN / REGISTRO)
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
@@ -143,7 +152,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# A PARTIR DE AQUÍ EL USUARIO ESTÁ LOGUEADO
+# USUARIO LOGUEADO
 # ==========================================
 
 st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
@@ -267,4 +276,4 @@ elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** {st.session_state.nombre_completo}")
     st.write(f"**ID de cuenta:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v3.2 (Robust Auth)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v3.3 (Full Secure Auth)")
