@@ -32,21 +32,68 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Título principal
+# Inicializar el estado de sesión para el login
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.nombre = ""
+    st.session_state.apellido = ""
+    st.session_state.es_ingeniero = True
+
+# PANTALLA DE INICIO DE SESIÓN / REGISTRO DE VISITANTE
+if not st.session_state.logged_in:
+    st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Plataforma Inteligente de Análisis Seminal Bovino</p>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.markdown("### 🔐 Identificación de Usuario / Visitante")
+        st.write("Por favor, introduce tus datos para acceder al laboratorio móvil.")
+        
+        with st.form("login_form"):
+            # Casillas limpias sin texto de ejemplo (placeholder)
+            nombre_input = st.text_input("Nombre")
+            apellido_input = st.text_input("Apellido")
+            es_ing_input = st.checkbox("¿Eres Ingeniero / Profesional?", value=True)
+            
+            submitted = st.form_submit_button("🚀 Entrar al Sistema")
+            
+            if submitted:
+                if nombre_input.strip() and apellido_input.strip():
+                    st.session_state.logged_in = True
+                    st.session_state.nombre = nombre_input.strip()
+                    st.session_state.apellido = apellido_input.strip()
+                    st.session_state.es_ingeniero = es_ing_input
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Por favor, ingresa tu nombre y apellido para continuar.")
+    
+    st.stop()
+
+# ==========================================
+# A PARTIR DE AQUÍ EL USUARIO YA ESTÁ LOGUEADO
+# ==========================================
+
+prefijo_titulo = "Ing. " if st.session_state.es_ingeniero else ""
+nombre_completo = f"{prefijo_titulo}{st.session_state.nombre} {st.session_state.apellido}"
+
 st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">Plataforma Inteligente de Análisis Seminal Bovino en Tiempo Real</p>', unsafe_allow_html=True)
 st.markdown("---")
 
-# Menú lateral
 menu = st.sidebar.selectbox(
     "📌 Menú de Navegación",
     ["Inicio", "Análisis Microscópico", "Cámara en Vivo (Dashboard)", "Historial y Reportes", "Configuración"]
 )
 
+if st.sidebar.button("🔄 Cambiar de Usuario"):
+    st.session_state.logged_in = False
+    st.rerun()
+
 if menu == "Inicio":
     col_1, col_2 = st.columns([2, 1])
     with col_1:
-        st.success("👋 ¡Bienvenido al sistema, Ing. Jonathan Morocho!")
+        st.success(f"👋 ¡Bienvenido al sistema, {nombre_completo}!")
         st.write("""
         **Bovi-Fertil-IA** integra visión artificial con OpenCV para emular sistemas profesionales de análisis de semen bovino en campo y laboratorio.
         """)
@@ -61,22 +108,20 @@ elif menu == "Análisis Microscópico":
     archivo = st.file_uploader("📂 Cargar microfotografía", type=["jpg", "jpeg", "png"])
     if archivo:
         img = Image.open(archivo)
-        st.image(img, caption="Muestra analizada", use_container_width=True)
+        st.image(img, caption=f"Muestra analizada por {nombre_completo}", use_container_width=True)
 
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Estilo Laboratorio)")
     
-    # Controles superiores de la muestra
     col_info1, col_info2, col_info3, col_info4, col_info5 = st.columns([2, 2, 2, 2, 2])
     with col_info1:
         toro_id = st.text_input("Identificador del Toro", "EQ-24")
     with col_info2:
         raza_val = st.text_input("Raza / Especie", "Holstein")
     with col_info3:
-        evaluador_val = st.text_input("Evaluador", "Ing. J. Morocho")
+        evaluador_val = st.text_input("Evaluador", nombre_completo)
     with col_info4:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Checkbox para alternar entre pantalla compacta y pantalla completa
         pantalla_completa = st.checkbox("🖥️ Pantalla Completa", value=False)
     with col_info5:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -84,7 +129,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
     st.markdown("---")
 
-    # Contenedores dinámicos para el video y las métricas
     video_slot = st.empty()
     metrics_placeholder = st.empty()
 
@@ -104,16 +148,15 @@ elif menu == "Cámara en Vivo (Dashboard)":
                 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # Control dinámico del tamaño: Si está marcado "Pantalla Completa", ocupa todo el ancho (100%). Si no, usa un tamaño más compacto y centrado (50%).
                 if pantalla_completa:
                     video_slot.image(
                         frame_rgb, 
                         channels="RGB", 
                         use_container_width=True, 
-                        caption=f"Muestra en Directo - Toro: {toro_id} [PANTALLA COMPLETA]"
+                        caption=f"Muestra en Directo - Toro: {toro_id} | Evaluador: {nombre_completo} [PANTALLA COMPLETA]"
                     )
                 else:
-                    _, col_centro, _ = st.columns([1, 2, 1])  # Centrado en una columna de tamaño medio
+                    _, col_centro, _ = st.columns([1, 2, 1])
                     with col_centro:
                         video_slot.image(
                             frame_rgb, 
@@ -122,7 +165,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
                             caption=f"Muestra en Directo - Toro: {toro_id} [Modo Estándar]"
                         )
                 
-                # Renderizar métricas dinámicas debajo del video
                 with metrics_placeholder.container():
                     st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
                     m1, m2, m3, m4 = st.columns(4)
@@ -152,6 +194,7 @@ elif menu == "Historial y Reportes":
     st.header("📋 Historial de Evaluaciones")
     df_demo = pd.DataFrame({
         "Toro": ["EQ-24", "EQ-25", "EQ-26"],
+        "Evaluador": [nombre_completo, nombre_completo, nombre_completo],
         "Motilidad (%)": [91, 84, 79],
         "Concentración (M/mL)": [40.39, 35.10, 29.80]
     })
@@ -159,4 +202,5 @@ elif menu == "Historial y Reportes":
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v2.2")
+    st.write(f"**Usuario actual:** {nombre_completo}")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v2.3")
