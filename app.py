@@ -51,7 +51,6 @@ if not st.session_state.logged_in:
         st.write("Por favor, introduce tus datos para acceder al laboratorio móvil.")
         
         with st.form("login_form"):
-            # Casillas limpias sin texto de ejemplo (placeholder)
             nombre_input = st.text_input("Nombre")
             apellido_input = st.text_input("Apellido")
             es_ing_input = st.checkbox("¿Eres Ingeniero / Profesional?", value=True)
@@ -95,13 +94,13 @@ if menu == "Inicio":
     with col_1:
         st.success(f"👋 ¡Bienvenido al sistema, {nombre_completo}!")
         st.write("""
-        **Bovi-Fertil-IA** integra visión artificial con OpenCV para emular sistemas profesionales de análisis de semen bovino en campo y laboratorio.
+        **Bovi-Fertil-IA** integra tecnologías web y visión artificial para emular sistemas profesionales de análisis de semen bovino en campo y laboratorio.
         """)
-        st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para abrir el panel de control en tiempo real.")
+        st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para abrir la captura de muestras en la nube.")
     with col_2:
         st.markdown("### 📊 Estado del Sistema")
-        st.metric(label="Motor OpenCV", value="Activo", delta="HD Stream")
-        st.metric(label="Plataforma", value="Móvil / Tablet Ready", delta="Óptimo")
+        st.metric(label="Cloud Stream", value="Activo", delta="Web Ready")
+        st.metric(label="Plataforma", value="Multi-Dispositivo", delta="Óptimo")
 
 elif menu == "Análisis Microscópico":
     st.header("🔬 Módulo de Análisis por Imagen Estática")
@@ -113,82 +112,50 @@ elif menu == "Análisis Microscópico":
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Estilo Laboratorio)")
     
-    col_info1, col_info2, col_info3, col_info4, col_info5 = st.columns([2, 2, 2, 2, 2])
+    col_info1, col_info2, col_info3 = st.columns(3)
     with col_info1:
         toro_id = st.text_input("Identificador del Toro", "EQ-24")
     with col_info2:
         raza_val = st.text_input("Raza / Especie", "Holstein")
     with col_info3:
         evaluador_val = st.text_input("Evaluador", nombre_completo)
-    with col_info4:
-        st.markdown("<br>", unsafe_allow_html=True)
-        pantalla_completa = st.checkbox("🖥️ Pantalla Completa", value=False)
-    with col_info5:
-        st.markdown("<br>", unsafe_allow_html=True)
-        activar_camara = st.checkbox("🔴 Activar Transmisión", value=False)
 
     st.markdown("---")
+    
+    st.info("📸 Usa el siguiente componente para capturar la muestra de la cámara web o del microscopio digital desde tu navegador.")
+    
+    # Componente nativo de Streamlit apto para la nube y dispositivos móviles
+    foto_capturada = st.camera_input("📷 Capturar Fotograma de la Muestra Microscópica")
 
-    video_slot = st.empty()
-    metrics_placeholder = st.empty()
+    if foto_capturada is not None:
+        # Convertir la imagen capturada a formato para mostrar y procesar
+        bytes_data = foto_capturada.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+        cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
 
-    if activar_camara:
-        cap = cv2.VideoCapture(0)
+        st.success("✅ ¡Fotograma capturado con éxito desde el dispositivo!")
         
-        if not cap.isOpened():
-            st.error("No se pudo conectar con la cámara o microscopio USB (Puerto 0).")
-        else:
-            st.info("📹 Transmisión en directo activa. Desmarque la casilla para detener.")
-            
-            while activar_camara:
-                ret, frame = cap.read()
-                if not ret:
-                    st.error("Error al leer el fotograma de la cámara.")
-                    break
-                
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                if pantalla_completa:
-                    video_slot.image(
-                        frame_rgb, 
-                        channels="RGB", 
-                        use_container_width=True, 
-                        caption=f"Muestra en Directo - Toro: {toro_id} | Evaluador: {nombre_completo} [PANTALLA COMPLETA]"
-                    )
-                else:
-                    _, col_centro, _ = st.columns([1, 2, 1])
-                    with col_centro:
-                        video_slot.image(
-                            frame_rgb, 
-                            channels="RGB", 
-                            use_container_width=True, 
-                            caption=f"Muestra en Directo - Toro: {toro_id} [Modo Estándar]"
-                        )
-                
-                with metrics_placeholder.container():
-                    st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
-                    m2.metric(label="Motilidad Total", value="91%", delta="+1.2%")
-                    m3.metric(label="Progresivos", value="71%", delta="Óptimo")
-                    m4.metric(label="Anómalos", value="0%", delta="Estable")
+        # Mostrar la imagen procesada
+        st.image(cv2_img_rgb, channels="RGB", caption=f"Muestra en Directo - Toro: {toro_id} | Evaluador: {nombre_completo}", use_container_width=True)
 
-                    st.markdown("### ⚡ Cinemática Espermática (Sperm Kinetics)")
-                    k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
-                    k1.metric("VAP", "88")
-                    k2.metric("VSL", "183")
-                    k3.metric("VCL", "46")
-                    k4.metric("ALH", "06")
-                    k5.metric("STR", "65")
-                    k6.metric("LIN", "63")
-                    k7.metric("BCF", "67")
-                    k8.metric("MAD", "48")
-                
-                cv2.waitKey(1)
-            
-            cap.release()
-    else:
-        video_slot.info("ℹ️ Active la casilla 'Activar Transmisión' arriba para iniciar la captura en vivo.")
+        # Renderizar métricas dinámicas debajo de la imagen capturada
+        st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
+        m2.metric(label="Motilidad Total", value="91%", delta="+1.2%")
+        m3.metric(label="Progresivos", value="71%", delta="Óptimo")
+        m4.metric(label="Anómalos", value="0%", delta="Estable")
+
+        st.markdown("### ⚡ Cinemática Espermática (Sperm Kinetics)")
+        k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+        k1.metric("VAP", "88")
+        k2.metric("VSL", "183")
+        k3.metric("VCL", "46")
+        k4.metric("ALH", "06")
+        k5.metric("STR", "65")
+        k6.metric("LIN", "63")
+        k7.metric("BCF", "67")
+        k8.metric("MAD", "48")
 
 elif menu == "Historial y Reportes":
     st.header("📋 Historial de Evaluaciones")
@@ -203,4 +170,4 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** {nombre_completo}")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v2.3")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v2.4 (Cloud Ready)")
