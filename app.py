@@ -265,4 +265,20 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v4.2 (Data Folder Architecture)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v4.3 (Data Management)")
+    
+    st.markdown("### 📥 Respaldo de Datos")
+    st.write("Puedes descargar el archivo completo de cuentas y registros (`bovi_users_db.json`) directamente desde aquí:")
+    
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            json_str = f.read()
+        
+        st.download_button(
+            label="📥 Descargar Base de Datos (.json)",
+            data=json_str,
+            file_name="bovi_users_db.json",
+            mime="application/json"
+        )
+    else:
+        st.info("Aún no hay datos guardados para descargar.")
