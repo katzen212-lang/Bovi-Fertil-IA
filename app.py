@@ -53,7 +53,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Archivo local para persistencia de cuentas y registros
+# Archivo JSON para persistencia permanente de cuentas e historial
 DB_FILE = "bovi_users_db.json"
 
 def cargar_base_datos():
@@ -73,9 +73,9 @@ def guardar_base_datos(data):
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
     except Exception as e:
-        st.error(f"Error al guardar la base de datos: {e}")
+        st.error(f"Error al guardar en la base de datos: {e}")
 
-# Función profesional para encriptar contraseñas con SHA-256
+# Función para encriptar contraseñas de forma segura con SHA-256
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -85,15 +85,13 @@ db = cargar_base_datos()
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.session_state.nombre_completo = ""
 
-# Botón de emergencia en la barra lateral para forzar la pantalla de login si se queda guardada la sesión
+# Botón de emergencia en la barra lateral para forzar el login si fuera necesario
 with st.sidebar:
     st.markdown("### 🛠️ Control de Sesión")
     if st.button("🔄 Forzar Pantalla de Login"):
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.session_state.nombre_completo = ""
         st.rerun()
 
 # ==========================================
@@ -111,7 +109,7 @@ if not st.session_state.logged_in:
         with tab_login:
             st.markdown("### Acceso al Sistema")
             with st.form("login_form"):
-                user_login = st.text_input("Usuario o Correo", placeholder="ej. jmorocho")
+                user_login = st.text_input("Usuario", placeholder="ej. jmorocho")
                 pass_login = st.text_input("Contraseña", type="password", placeholder="••••••••")
                 btn_login = st.form_submit_button("🚀 Entrar al Sistema")
                 
@@ -120,7 +118,6 @@ if not st.session_state.logged_in:
                     if user_login in db["usuarios"] and db["usuarios"][user_login]["password"] == hashed_pass:
                         st.session_state.logged_in = True
                         st.session_state.username = user_login
-                        st.session_state.nombre_completo = db["usuarios"][user_login]["nombre"]
                         st.success("¡Acceso concedido con éxito!")
                         st.rerun()
                     else:
@@ -129,21 +126,20 @@ if not st.session_state.logged_in:
         with tab_register:
             st.markdown("### Registro de Nueva Cuenta")
             with st.form("register_form"):
-                reg_user = st.text_input("Nombre de Usuario (único)", placeholder="ej. jmorocho")
-                reg_nombre = st.text_input("Nombre Completo y Título", placeholder="ej. Ing. Jonathan Morocho")
-                reg_pass = st.text_input("Contraseña segura", type="password", placeholder="Mínimo 6 caracteres")
+                reg_user = st.text_input("Nuevo Usuario", placeholder="ej. jmorocho")
+                reg_pass = st.text_input("Contraseña (mínimo 6 caracteres)", type="password", placeholder="••••••••")
                 btn_reg = st.form_submit_button("✨ Registrar Cuenta")
                 
                 if btn_reg:
-                    if not reg_user or not reg_nombre or not reg_pass:
-                        st.warning("⚠️ Por favor, completa todos los campos obligatorios.")
+                    if not reg_user or not reg_pass:
+                        st.warning("⚠️ Por favor, completa todos los campos.")
                     elif len(reg_pass) < 6:
                         st.warning("⚠️ La contraseña debe tener al menos 6 caracteres.")
                     elif reg_user in db["usuarios"]:
                         st.error("❌ El nombre de usuario ya está en uso. Elige otro.")
                     else:
+                        # Guardar cuenta de forma permanente en el JSON
                         db["usuarios"][reg_user] = {
-                            "nombre": reg_nombre,
                             "password": hash_password(reg_pass)
                         }
                         guardar_base_datos(db)
@@ -156,7 +152,7 @@ if not st.session_state.logged_in:
 # ==========================================
 
 st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-title">Sesión activa: <b>{st.session_state.nombre_completo}</b></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-title">Sesión activa: <b>{st.session_state.username}</b></p>', unsafe_allow_html=True)
 st.markdown("---")
 
 menu = st.sidebar.selectbox(
@@ -167,20 +163,19 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.session_state.nombre_completo = ""
     st.rerun()
 
 if menu == "Inicio":
     col_1, col_2 = st.columns([2, 1])
     with col_1:
-        st.success(f"👋 ¡Bienvenido de nuevo, {st.session_state.nombre_completo}!")
+        st.success(f"👋 ¡Bienvenido de nuevo, {st.session_state.username}!")
         st.write("""
-        **Bovi-Fertil-IA** integra tecnologías web y visión artificial para emular sistemas profesionales de análisis de semen bovino. Tu cuenta cuenta con un espacio privado y seguro para almacenar tus evaluaciones.
+        **Bovi-Fertil-IA** almacena de forma permanente todas tus cuentas y registros de evaluaciones de manera segura y privada para cada usuario.
         """)
         st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para iniciar una nueva evaluación.")
     with col_2:
         st.markdown("### 📊 Estado de la Cuenta")
-        st.metric(label="Seguridad de Clave", value="SHA-256", delta="Cifrado Pro")
+        st.metric(label="Base de Datos", value="Permanente (JSON)", delta="Sincronizada")
         st.metric(label="Estado", value="Conectado", delta="Activo")
 
 elif menu == "Análisis Microscópico":
@@ -190,12 +185,11 @@ elif menu == "Análisis Microscópico":
     
     if archivo:
         img = Image.open(archivo)
-        st.image(img, caption=f"Muestra analizada por {st.session_state.nombre_completo}", use_container_width=True)
+        st.image(img, caption=f"Muestra analizada por {st.session_state.username}", use_container_width=True)
         
         if st.button("💾 Guardar Evaluación en mi Historial"):
             nuevo_registro = {
                 "usuario": st.session_state.username,
-                "evaluador": st.session_state.nombre_completo,
                 "toro": toro_estatico,
                 "tipo": "Imagen Estática",
                 "motilidad": "89.5%",
@@ -203,7 +197,7 @@ elif menu == "Análisis Microscópico":
             }
             db["historial"].append(nuevo_registro)
             guardar_base_datos(db)
-            st.success("✅ ¡Evaluación guardada exitosamente en tu perfil!")
+            st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Estilo Laboratorio)")
@@ -214,7 +208,7 @@ elif menu == "Cámara en Vivo (Dashboard)":
     with col_info2:
         raza_val = st.text_input("Raza / Especie", "Holstein")
     with col_info3:
-        evaluador_val = st.text_input("Evaluador", st.session_state.nombre_completo)
+        evaluador_val = st.text_input("Evaluador", st.session_state.username)
 
     st.markdown("---")
     
@@ -250,7 +244,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
         if st.button("💾 Guardar Análisis en mi Historial"):
             registro_vivo = {
                 "usuario": st.session_state.username,
-                "evaluador": evaluador_val,
                 "toro": toro_id,
                 "tipo": f"Cámara ({raza_val})",
                 "motilidad": "91%",
@@ -258,11 +251,12 @@ elif menu == "Cámara en Vivo (Dashboard)":
             }
             db["historial"].append(registro_vivo)
             guardar_base_datos(db)
-            st.success("✅ ¡Resultado guardado en tu historial personal!")
+            st.success("✅ ¡Resultado guardado permanentemente en tu historial!")
 
 elif menu == "Historial y Reportes":
-    st.header(f"📋 Historial de Evaluaciones de {st.session_state.nombre_completo}")
+    st.header(f"📋 Historial de Evaluaciones de {st.session_state.username}")
     
+    # Filtrar exclusivamente los registros guardados por el usuario actual
     historial_usuario = [h for h in db["historial"] if h["usuario"] == st.session_state.username]
     
     if historial_usuario:
@@ -274,6 +268,5 @@ elif menu == "Historial y Reportes":
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
-    st.write(f"**Usuario actual:** {st.session_state.nombre_completo}")
-    st.write(f"**ID de cuenta:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v3.3 (Full Secure Auth)")
+    st.write(f"**Usuario actual:** `{st.session_state.username}`")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v4.0 (Persistent JSON Auth)")
