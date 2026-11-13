@@ -11,36 +11,43 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS avanzados: Glassmorphism y tarjetas de laboratorio industrial
+# Estilos CSS avanzados con alto contraste para el modo oscuro de Streamlit
 st.markdown("""
     <style>
     .main-title {
         font-size: 2.8rem !important;
-        color: #1E3A8A !important;
+        color: #60A5FA !important;
         font-weight: 800 !important;
         margin-bottom: 0px;
     }
     .sub-title {
         font-size: 1.2rem !important;
-        color: #64748B !important;
+        color: #94A3B8 !important;
         font-weight: 500 !important;
         margin-bottom: 20px;
     }
     p, .stMarkdown, .stAlert {
         font-size: 1.1rem !important;
     }
-    /* Estilo profesional para las métricas tipo tarjeta de laboratorio */
+    /* Tarjetas de métricas estilizadas con alto contraste para modo oscuro */
     div.stMetric {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background-color: #1E293B;
+        border: 1px solid #334155;
         padding: 15px 10px;
         border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease;
     }
     div.stMetric:hover {
-        border-color: #3b82f6;
-        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
+        border-color: #60A5FA;
+        box-shadow: 0 10px 15px -3px rgba(96, 165, 250, 0.2);
+    }
+    /* Forzar que los textos dentro de las métricas resalten bien */
+    div.stMetric label {
+        color: #94A3B8 !important;
+    }
+    div.stMetric [data-testid="stMetricValue"] {
+        color: #F8FAFC !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -146,7 +153,7 @@ elif menu == "Cámara en Vivo (Dashboard)":
         st.success("✅ ¡Fotograma capturado con éxito!")
         st.image(cv2_img_rgb, channels="RGB", caption=f"Muestra en Directo - Toro: {toro_id} | Evaluador: {nombre_completo}", use_container_width=True)
 
-        # Métricas con el nuevo diseño de tarjetas estilizadas
+        # Métricas con el nuevo diseño adaptado para alto contraste en modo oscuro
         st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
@@ -178,4 +185,4 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** {nombre_completo}")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v2.5 (Styled)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v2.6 (High-Contrast)")
