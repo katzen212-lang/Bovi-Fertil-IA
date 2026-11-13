@@ -86,14 +86,6 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-# Botón de emergencia en la barra lateral para forzar el login si fuera necesario
-with st.sidebar:
-    st.markdown("### 🛠️ Control de Sesión")
-    if st.button("🔄 Forzar Pantalla de Login"):
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.rerun()
-
 # ==========================================
 # PANTALLA DE AUTENTICACIÓN (LOGIN / REGISTRO)
 # ==========================================
@@ -109,7 +101,7 @@ if not st.session_state.logged_in:
         with tab_login:
             st.markdown("### Acceso al Sistema")
             with st.form("login_form"):
-                user_login = st.text_input("Usuario", placeholder="ej. jmorocho")
+                user_login = st.text_input("Usuario", placeholder="Ingresa tu usuario")
                 pass_login = st.text_input("Contraseña", type="password", placeholder="••••••••")
                 btn_login = st.form_submit_button("🚀 Entrar al Sistema")
                 
@@ -126,7 +118,7 @@ if not st.session_state.logged_in:
         with tab_register:
             st.markdown("### Registro de Nueva Cuenta")
             with st.form("register_form"):
-                reg_user = st.text_input("Nuevo Usuario", placeholder="ej. jmorocho")
+                reg_user = st.text_input("Nuevo Usuario", placeholder="Crea tu usuario único")
                 reg_pass = st.text_input("Contraseña (mínimo 6 caracteres)", type="password", placeholder="••••••••")
                 btn_reg = st.form_submit_button("✨ Registrar Cuenta")
                 
@@ -138,7 +130,6 @@ if not st.session_state.logged_in:
                     elif reg_user in db["usuarios"]:
                         st.error("❌ El nombre de usuario ya está en uso. Elige otro.")
                     else:
-                        # Guardar cuenta de forma permanente en el JSON
                         db["usuarios"][reg_user] = {
                             "password": hash_password(reg_pass)
                         }
@@ -256,7 +247,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
 elif menu == "Historial y Reportes":
     st.header(f"📋 Historial de Evaluaciones de {st.session_state.username}")
     
-    # Filtrar exclusivamente los registros guardados por el usuario actual
     historial_usuario = [h for h in db["historial"] if h["usuario"] == st.session_state.username]
     
     if historial_usuario:
@@ -269,4 +259,4 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v4.0 (Persistent JSON Auth)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v4.1 (Clean Auth)")
