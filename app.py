@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS avanzados para replicar el panel de grado industrial
+# Estilos CSS avanzados: Glassmorphism y tarjetas de laboratorio industrial
 st.markdown("""
     <style>
     .main-title {
@@ -29,6 +29,19 @@ st.markdown("""
     p, .stMarkdown, .stAlert {
         font-size: 1.1rem !important;
     }
+    /* Estilo profesional para las métricas tipo tarjeta de laboratorio */
+    div.stMetric {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 15px 10px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+    div.stMetric:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -39,7 +52,7 @@ if "logged_in" not in st.session_state:
     st.session_state.apellido = ""
     st.session_state.es_ingeniero = True
 
-# PANTALLA DE INICIO DE SESIÓN / REGISTRO DE VISITANTE
+# PANTALLA DE INICIO DE SESIÓN
 if not st.session_state.logged_in:
     st.markdown('<p class="main-title">🔬 Bovi-Fertil-IA</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Plataforma Inteligente de Análisis Seminal Bovino</p>', unsafe_allow_html=True)
@@ -70,7 +83,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# A PARTIR DE AQUÍ EL USUARIO YA ESTÁ LOGUEADO
+# USUARIO LOGUEADO
 # ==========================================
 
 prefijo_titulo = "Ing. " if st.session_state.es_ingeniero else ""
@@ -96,7 +109,7 @@ if menu == "Inicio":
         st.write("""
         **Bovi-Fertil-IA** integra tecnologías web y visión artificial para emular sistemas profesionales de análisis de semen bovino en campo y laboratorio.
         """)
-        st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para abrir la captura de muestras en la nube.")
+        st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para abrir la captura de muestras.")
     with col_2:
         st.markdown("### 📊 Estado del Sistema")
         st.metric(label="Cloud Stream", value="Activo", delta="Web Ready")
@@ -122,23 +135,18 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
     st.markdown("---")
     
-    st.info("📸 Usa el siguiente componente para capturar la muestra de la cámara web o del microscopio digital desde tu navegador.")
-    
-    # Componente nativo de Streamlit apto para la nube y dispositivos móviles
+    st.info("📸 Usa el siguiente componente para capturar la muestra de la cámara web o del microscopio digital.")
     foto_capturada = st.camera_input("📷 Capturar Fotograma de la Muestra Microscópica")
 
     if foto_capturada is not None:
-        # Convertir la imagen capturada a formato para mostrar y procesar
         bytes_data = foto_capturada.getvalue()
         cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
         cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
 
-        st.success("✅ ¡Fotograma capturado con éxito desde el dispositivo!")
-        
-        # Mostrar la imagen procesada
+        st.success("✅ ¡Fotograma capturado con éxito!")
         st.image(cv2_img_rgb, channels="RGB", caption=f"Muestra en Directo - Toro: {toro_id} | Evaluador: {nombre_completo}", use_container_width=True)
 
-        # Renderizar métricas dinámicas debajo de la imagen capturada
+        # Métricas con el nuevo diseño de tarjetas estilizadas
         st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
@@ -170,4 +178,4 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** {nombre_completo}")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v2.4 (Cloud Ready)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v2.5 (Styled)")
