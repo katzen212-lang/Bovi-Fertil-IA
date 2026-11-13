@@ -58,13 +58,22 @@ DB_FILE = "bovi_users_db.json"
 
 def cargar_base_datos():
     if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                content = f.read()
+                if not content.strip():
+                    return {"usuarios": {}, "historial": []}
+                return json.loads(content)
+        except Exception:
+            return {"usuarios": {}, "historial": []}
     return {"usuarios": {}, "historial": []}
 
 def guardar_base_datos(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        st.error(f"Error al guardar la base de datos: {e}")
 
 # Función profesional para encriptar contraseñas con SHA-256
 def hash_password(password):
@@ -124,7 +133,6 @@ if not st.session_state.logged_in:
                     elif reg_user in db["usuarios"]:
                         st.error("❌ El nombre de usuario ya está en uso. Elige otro.")
                     else:
-                        # Guardar usuario con contraseña cifrada profesionalmente
                         db["usuarios"][reg_user] = {
                             "nombre": reg_nombre,
                             "password": hash_password(reg_pass)
@@ -246,7 +254,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
 elif menu == "Historial y Reportes":
     st.header(f"📋 Historial de Evaluaciones de {st.session_state.nombre_completo}")
     
-    # Filtrar exclusivamente los registros del usuario que ha iniciado sesión
     historial_usuario = [h for h in db["historial"] if h["usuario"] == st.session_state.username]
     
     if historial_usuario:
@@ -260,4 +267,4 @@ elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** {st.session_state.nombre_completo}")
     st.write(f"**ID de cuenta:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v3.1 (Secure Auth)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v3.2 (Robust Auth)")
