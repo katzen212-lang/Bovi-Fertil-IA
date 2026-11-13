@@ -53,8 +53,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Archivo JSON para persistencia permanente de cuentas e historial
-DB_FILE = "bovi_users_db.json"
+# ==========================================
+# GESTIÓN DE CARPETA Y BASE DE DATOS
+# ==========================================
+DATA_DIR = "data"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_FILE = os.path.join(DATA_DIR, "bovi_users_db.json")
 
 def cargar_base_datos():
     if os.path.exists(DB_FILE):
@@ -161,12 +167,12 @@ if menu == "Inicio":
     with col_1:
         st.success(f"👋 ¡Bienvenido de nuevo, {st.session_state.username}!")
         st.write("""
-        **Bovi-Fertil-IA** almacena de forma permanente todas tus cuentas y registros de evaluaciones de manera segura y privada para cada usuario.
+        **Bovi-Fertil-IA** almacena de forma permanente todas tus cuentas y registros de evaluaciones en la carpeta de datos (`data/`) de manera segura y privada para cada usuario.
         """)
         st.info("👈 Seleccione **Cámara en Vivo (Dashboard)** en el menú lateral para iniciar una nueva evaluación.")
     with col_2:
         st.markdown("### 📊 Estado de la Cuenta")
-        st.metric(label="Base de Datos", value="Permanente (JSON)", delta="Sincronizada")
+        st.metric(label="Almacenamiento", value="Carpeta /data", delta="Seguro")
         st.metric(label="Estado", value="Conectado", delta="Activo")
 
 elif menu == "Análisis Microscópico":
@@ -259,4 +265,4 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v4.1 (Clean Auth)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v4.2 (Data Folder Architecture)")
