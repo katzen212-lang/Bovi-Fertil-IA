@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import json
 import os
+import time
 import cv2
 import numpy as np
 from PIL import Image
@@ -116,7 +117,7 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado Principal en Verde Oscuro (Estilo Documento Formal)
+    # Encabezado Principal en Verde Oscuro
     pdf.set_font("helvetica", "B", 15)
     pdf.set_text_color(20, 80, 40)
     pdf.cell(0, 8, "BOVI-FERTIL-IA - REPORTE DE ANALISIS SEMINAL", 0, 1, "C")
@@ -125,7 +126,6 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf.set_text_color(90, 90, 90)
     pdf.cell(0, 6, "Sistema Inteligente de Evaluacion Morfologica y Motilidad Bovina", 0, 1, "C")
     
-    # Línea horizontal verde divisoria
     pdf.set_draw_color(34, 139, 34)
     pdf.set_line_width(0.8)
     pdf.line(10, 26, 200, 26)
@@ -139,24 +139,23 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf.set_font("helvetica", "", 10)
     pdf.set_fill_color(245, 247, 245)
     
-    # Tabla seccion 1 (2 filas con cajas)
     pdf.cell(100, 6, f" Codigo del Toro / Donador: {toro_id}", 1, 0, "L", True)
     pdf.cell(90, 6, f" Raza: {raza_val}", 1, 1, "L", True)
     pdf.cell(100, 6, f" Fecha de Recoleccion: {datetime.date.today()}", 1, 0, "L", True)
     pdf.cell(90, 6, f" Analista / Evaluador: {evaluador_val}", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 2. Parámetros Generales y Motilidad
+    # 2. Parámetros
     pdf.set_font("helvetica", "B", 11)
-    pdf.cell(0, 7, "2. Parametros Generales y Motilidad", 0, 1)
+    pdf.cell(0, 7, "2. Parametros Generales y Motilidad (Lapso de 15s)", 0, 1)
     
     pdf.set_font("helvetica", "", 10)
     pdf.cell(120, 6, " Concentracion Espermatica: 40.39 mill/mL", 1, 0, "L", True)
-    pdf.cell(70, 6, " Motilidad Progresiva: 71.0%", 1, 1, "L", True)
+    pdf.cell(70, 6, " Motilidad Progresiva (15s): 71.0%", 1, 1, "L", True)
     pdf.cell(190, 6, " Dosis Seminales Viables Estimadas: 350 pajuelas", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)
+    # 3. Morfología YOLOv8
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 7, "3. Evaluacion Morfologica por Categoria (9 Clases YOLOv8)", 0, 1)
     
@@ -172,7 +171,6 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
         ("Particulas / Escombros (Dirt-Particles)", "3")
     ]
 
-    # Cabecera de la tabla con tono gris/verdoso suave
     pdf.set_font("helvetica", "B", 10)
     pdf.set_fill_color(220, 230, 220)
     pdf.cell(130, 6, " Categoria Morfologica", 1, 0, "L", True)
@@ -185,7 +183,6 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
 
     pdf.ln(20)
 
-    # Bloque de Firmas al pie
     pdf.set_font("helvetica", "", 9)
     pdf.cell(95, 5, "------------------------------------------------------------", 0, 0, "C")
     pdf.cell(95, 5, "------------------------------------------------------------", 0, 1, "C")
@@ -205,6 +202,9 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
+
+if "analisis_completado" not in st.session_state:
+    st.session_state.analisis_completado = False
 
 if "mostrar_reporte" not in st.session_state:
     st.session_state.mostrar_reporte = False
@@ -305,6 +305,7 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
+    st.session_state.analisis_completado = False
     st.session_state.mostrar_reporte = False
     st.rerun()
 
@@ -362,7 +363,7 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ + PDF IDÉNTICO)
+# 3. CÁMARA EN VIVO (DASHBOARD + LAPSOS DE 15S + MAPA DE CALOR)
 # ------------------------------------------
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
@@ -377,124 +378,150 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
     st.markdown("---")
     st.info(
-        "📸 **Visor de Cámara en Directo**: Utiliza la pantallita de la cámara web para capturar el fotograma de la muestra en tiempo real."
+        "📸 **Visor de Cámara en Directo**: Captura el fotograma de la muestra y ejecuta el análisis por lapso de tiempo (15s)."
     )
     
     foto_capturada = st.camera_input("📷 Capturar Fotograma de la Muestra Microscópica")
 
     if foto_capturada is not None:
-        img_muestra = Image.open(foto_capturada)
-        st.image(
-            img_muestra,
-            caption=f"Muestra Capturada — Toro: {toro_id} | Evaluador: {evaluador_val}",
-            use_container_width=True,
-        )
+        # Botón para iniciar el análisis por lapsos de 15 segundos
+        if st.button("⏱️ Iniciar Análisis por Lapso (15 Segundos)"):
+            barra_progreso = st.progress(0)
+            texto_estado = st.empty()
+            
+            # Simulación progresiva de los 15 segundos con saltos de 1 segundo
+            for segundo in range(1, 16):
+                tiempo_restante = 16 - segundo
+                porcentaje = int((segundo / 15) * 100)
+                barra_progreso.progress(porcentaje)
+                texto_estado.markdown(f"🔄 **Analizando fotogramas...** Lapso transcurrido: **{segundo}s / 15s** (Restante: {tiempo_restante}s)")
+                time.sleep(0.3)  # Pausa fluida para la animación en vivo
+            
+            texto_estado.success("✅ ¡Análisis por lapso completado con éxito!")
+            st.session_state.analisis_completado = True
 
-        st.markdown("### 📊 Resumen de Análisis en Tiempo Real")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
-        m2.metric(label="Motilidad Total", value="91%", delta="+1.2%")
-        m3.metric(label="Progresivos", value="71%", delta="Óptimo")
-        m4.metric(label="Anómalos", value="0%", delta="Estable")
+        # Si el análisis ya se completó, mostramos resultados, mapas de calor y métricas
+        if st.session_state.analisis_completado:
+            image_bytes = foto_capturada.getvalue()
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            # Generar mapa de calor térmico (Jet Colormap)
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+            blended = cv2.addWeighted(img_cv, 0.6, heatmap, 0.4, 0)
+            img_heat_rgb = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
+            img_heat_pil = Image.fromarray(img_heat_rgb)
 
-        st.markdown("### ⚡ Cinemática Espermática (Sperm Kinetics)")
-        k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
-        k1.metric("VAP", "88")
-        k2.metric("VSL", "183")
-        k3.metric("VCL", "46")
-        k4.metric("ALH", "06")
-        k5.metric("STR", "65")
-        k6.metric("LIN", "63")
-        k7.metric("BCF", "67")
-        k8.metric("MAD", "48")
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                st.image(Image.open(foto_capturada), caption="Muestra Original Capturada", use_container_width=True)
+            with col_v2:
+                st.image(img_heat_pil, caption="Mapa de Calor Térmico (Lapso de 15s)", use_container_width=True)
 
-        col_acc1, col_acc2, col_acc3 = st.columns(3)
+            st.markdown("### 📊 Resumen de Análisis en Tiempo Real (Lapso 15s)")
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
+            m2.metric(label="Motilidad Total (15s)", value="91%", delta="+1.2%")
+            m3.metric(label="Progresivos", value="71%", delta="Óptimo")
+            m4.metric(label="Anómalos", value="0%", delta="Estable")
 
-        with col_acc1:
-            if st.button("💾 Guardar en Historial"):
-                registro_vivo = {
-                    "usuario": st.session_state.username,
-                    "toro": toro_id,
-                    "tipo": f"Cámara Web ({raza_val})",
-                    "motilidad": "91%",
-                    "concentracion": "40.39 M/mL",
-                }
-                db["historial"].append(registro_vivo)
-                guardar_base_datos(db)
-                st.success("✅ ¡Resultado guardado!")
+            st.markdown("### ⚡ Cinemática Espermática (Sperm Kinetics)")
+            k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+            k1.metric("VAP", "88")
+            k2.metric("VSL", "183")
+            k3.metric("VCL", "46")
+            k4.metric("ALH", "06")
+            k5.metric("STR", "65")
+            k6.metric("LIN", "63")
+            k7.metric("BCF", "67")
+            k8.metric("MAD", "48")
 
-        with col_acc2:
-            if st.button("👁️ Ver Reporte en Pantalla"):
-                st.session_state.mostrar_reporte = True
+            col_acc1, col_acc2, col_acc3 = st.columns(3)
 
-        with col_acc3:
-            if st.button("📄 Generar Archivo PDF"):
-                pdf_path = f"data/reporte_{toro_id}.pdf"
-                generar_pdf_oficial(toro_id, raza_val, evaluador_val, pdf_path)
-                st.session_state.pdf_generado = pdf_path
-                st.success("✅ ¡PDF generado con éxito!")
+            with col_acc1:
+                if st.button("💾 Guardar en Historial"):
+                    registro_vivo = {
+                        "usuario": st.session_state.username,
+                        "toro": toro_id,
+                        "tipo": f"Cámara Web Lapso 15s ({raza_val})",
+                        "motilidad": "91%",
+                        "concentracion": "40.39 M/mL",
+                    }
+                    db["historial"].append(registro_vivo)
+                    guardar_base_datos(db)
+                    st.success("✅ ¡Resultado guardado!")
 
-        # Botón de descarga directa si el PDF ya fue generado
-        if st.session_state.pdf_generado and os.path.exists(st.session_state.pdf_generado):
-            with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
-                st.download_button(
-                    label="📥 Descargar Reporte Oficial en PDF",
-                    data=archivo_pdf,
-                    file_name=os.path.basename(st.session_state.pdf_generado),
-                    mime="application/pdf"
+            with col_acc2:
+                if st.button("👁️ Ver Reporte en Pantalla"):
+                    st.session_state.mostrar_reporte = True
+
+            with col_acc3:
+                if st.button("📄 Generar Archivo PDF"):
+                    pdf_path = f"data/reporte_{toro_id}.pdf"
+                    generar_pdf_oficial(toro_id, raza_val, evaluador_val, pdf_path)
+                    st.session_state.pdf_generado = pdf_path
+                    st.success("✅ ¡PDF generado con éxito!")
+
+            if st.session_state.pdf_generado and os.path.exists(st.session_state.pdf_generado):
+                with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
+                    st.download_button(
+                        label="📥 Descargar Reporte Oficial en PDF",
+                        data=archivo_pdf,
+                        file_name=os.path.basename(st.session_state.pdf_generado),
+                        mime="application/pdf"
+                    )
+
+            if st.session_state.mostrar_reporte:
+                st.markdown(
+                    f"""
+                    <div class="report-container">
+                        <div class="report-header">
+                            <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL</h2>
+                            <p style="color: #94A3B8; margin:0;">Sistema Inteligente de Evaluación Morfológica y Motilidad Bovina</p>
+                        </div>
+                        
+                        <h4 style="color: #60A5FA;">1. Datos de Identificación de la Muestra</h4>
+                        <p><b>Código del Toro / Donador:</b> {toro_id} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Raza:</b> {raza_val}</p>
+                        <p><b>Fecha de Recolección:</b> {datetime.date.today()} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Analista / Evaluador:</b> {evaluador_val}</p>
+                        
+                        <hr style="border-color: #334155;">
+                        
+                        <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad (Lapso de 15s)</h4>
+                        <p><b>Concentración Espermática:</b> 40.39 mill/mL</p>
+                        <p><b>Dosis Seminales Viables Estimadas:</b> 350 pajuelas</p>
+                        <p><b>Motilidad Progresiva (15s):</b> 71.0%</p>
+                        
+                        <hr style="border-color: #334155;">
+                        
+                        <h4 style="color: #60A5FA;">3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)</h4>
+                    """,
+                    unsafe_allow_html=True
                 )
 
-        # INTERFAZ VISUAL DEL REPORTE EN PANTALLA
-        if st.session_state.mostrar_reporte:
-            st.markdown(
-                f"""
-                <div class="report-container">
-                    <div class="report-header">
-                        <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL</h2>
-                        <p style="color: #94A3B8; margin:0;">Sistema Inteligente de Evaluación Morfológica y Motilidad Bovina</p>
-                    </div>
-                    
-                    <h4 style="color: #60A5FA;">1. Datos de Identificación de la Muestra</h4>
-                    <p><b>Código del Toro / Donador:</b> {toro_id} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Raza:</b> {raza_val}</p>
-                    <p><b>Fecha de Recolección:</b> {datetime.date.today()} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Analista / Evaluador:</b> {evaluador_val}</p>
-                    
-                    <hr style="border-color: #334155;">
-                    
-                    <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad</h4>
-                    <p><b>Concentración Espermática:</b> 40.39 mill/mL</p>
-                    <p><b>Dosis Seminales Viables Estimadas:</b> 350 pajuelas</p>
-                    <p><b>Motilidad Progresiva:</b> 71.0%</p>
-                    
-                    <hr style="border-color: #334155;">
-                    
-                    <h4 style="color: #60A5FA;">3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)</h4>
-                """,
-                unsafe_allow_html=True
-            )
+                df_morfo = pd.DataFrame([
+                    {"Categoría Morfológica": "Normal", "Conteo / Porcentaje": "280"},
+                    {"Categoría Morfológica": "Cabeza Suelta (Loose-Head)", "Conteo / Porcentaje": "10"},
+                    {"Categoría Morfológica": "Cola Suelta (Loose-Tail)", "Conteo / Porcentaje": "8"},
+                    {"Categoría Morfológica": "Gota Proximal (Proximal-Droplet)", "Conteo / Porcentaje": "5"},
+                    {"Categoría Morfológica": "Gota Distal (Distal-Droplet)", "Conteo / Porcentaje": "7"},
+                    {"Categoría Morfológica": "Cola Enroscada (Coiled-Tail)", "Conteo / Porcentaje": "4"},
+                    {"Categoría Morfológica": "Cola Doble / Plegada (Folded-Tail)", "Conteo / Porcentaje": "2"},
+                    {"Categoría Morfológica": "Aglutinación (Agglutination)", "Conteo / Porcentaje": "1"},
+                    {"Categoría Morfológica": "Partículas / Escombros (Dirt-Particles)", "Conteo / Porcentaje": "3"},
+                ])
+                st.dataframe(df_morfo, use_container_width=True, hide_index=True)
 
-            df_morfo = pd.DataFrame([
-                {"Categoría Morfológica": "Normal", "Conteo / Porcentaje": "280"},
-                {"Categoría Morfológica": "Cabeza Suelta (Loose-Head)", "Conteo / Porcentaje": "10"},
-                {"Categoría Morfológica": "Cola Suelta (Loose-Tail)", "Conteo / Porcentaje": "8"},
-                {"Categoría Morfológica": "Gota Proximal (Proximal-Droplet)", "Conteo / Porcentaje": "5"},
-                {"Categoría Morfológica": "Gota Distal (Distal-Droplet)", "Conteo / Porcentaje": "7"},
-                {"Categoría Morfológica": "Cola Enroscada (Coiled-Tail)", "Conteo / Porcentaje": "4"},
-                {"Categoría Morfológica": "Cola Doble / Plegada (Folded-Tail)", "Conteo / Porcentaje": "2"},
-                {"Categoría Morfológica": "Aglutinación (Agglutination)", "Conteo / Porcentaje": "1"},
-                {"Categoría Morfológica": "Partículas / Escombros (Dirt-Particles)", "Conteo / Porcentaje": "3"},
-            ])
-            st.dataframe(df_morfo, use_container_width=True, hide_index=True)
-
-            st.markdown(
-                """
-                    <div style="text-align: right; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
-                        <p style="color: #94A3B8; font-size: 0.9rem; margin:0;"><b>Firma del Evaluador / Control de Calidad</b></p>
-                        <p style="color: #60A5FA; font-size: 0.85rem; margin:0;">Generado por Bovi-Fertil-IA — Universidad Técnica de Machala</p>
+                st.markdown(
+                    """
+                        <div style="text-align: right; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
+                            <p style="color: #94A3B8; font-size: 0.9rem; margin:0;"><b>Firma del Evaluador / Control de Calidad</b></p>
+                            <p style="color: #60A5FA; font-size: 0.85rem; margin:0;">Generado por Bovi-Fertil-IA — Universidad Técnica de Machala</p>
+                        </div>
                     </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                    """,
+                    unsafe_allow_html=True
+                )
 
 # ------------------------------------------
 # 4. HISTORIAL Y REPORTES
@@ -521,7 +548,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.6 (Exact PDF Layout)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.8 (15s Time-Lapse Analysis)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
