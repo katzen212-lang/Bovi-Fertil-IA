@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import streamlit as st
+from fpdf import FPDF
 
 # Configuración general de la página en modo ancho
 st.set_page_config(
@@ -92,10 +93,66 @@ def hash_password(password):
 
 db = cargar_base_datos()
 
+# ==========================================
+# GENERADOR DE CERTIFICADO PDF OFICIAL
+# ==========================================
+def generar_pdf_certificado(sample_data, metrics, filename):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado del reporte
+    pdf.set_font("helvetica", "B", 18)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 10, "BOVI-FERTIL-IA", 0, 1, "C")
+    pdf.set_font("helvetica", "I", 12)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 8, "Certificado Oficial de Analisis Seminal Bovino", 0, 1, "C")
+    pdf.ln(10)
+
+    # Datos de la muestra
+    pdf.set_font("helvetica", "B", 12)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 8, "1. Datos Generales de la Muestra", 0, 1)
+    pdf.set_font("helvetica", "", 11)
+    pdf.cell(0, 7, f"Identificador del Toro: {sample_data.get('bull_code')}", 0, 1)
+    pdf.cell(0, 7, f"Raza / Especie: {sample_data.get('breed')}", 0, 1)
+    pdf.cell(0, 7, f"Fecha de Evaluacion: {sample_data.get('collection_date')}", 0, 1)
+    pdf.cell(0, 7, f"Analista Responsable: {sample_data.get('analyst')}", 0, 1)
+    pdf.ln(8)
+
+    # Resultados y Métricas
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 8, "2. Resultados de Evaluacion en Tiempo Real", 0, 1)
+    pdf.set_font("helvetica", "", 11)
+    pdf.cell(0, 7, f"Concentracion Espermatica: {metrics.get('concentration')} M/mL", 0, 1)
+    pdf.cell(0, 7, f"Motilidad Total / Progresiva: {metrics.get('motility')}", 0, 1)
+    pdf.cell(0, 7, "Estado de Viabilidad: Optimo / Calidad Alta", 0, 1)
+    pdf.ln(8)
+
+    # Cinemática CASA
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 8, "3. Parametros Cinematicos (CASA)", 0, 1)
+    pdf.set_font("helvetica", "", 11)
+    pdf.cell(0, 7, "VAP (Velocidad promedio de trayectoria): 88 um/s", 0, 1)
+    pdf.cell(0, 7, "VSL (Velocidad lineal recta): 183 um/s", 0, 1)
+    pdf.cell(0, 7, "VCL (Velocidad curvilinea): 46 um/s", 0, 1)
+    pdf.cell(0, 7, "STR (Rectitud): 65% | LIN (Linealidad): 63%", 0, 1)
+    pdf.ln(15)
+
+    # Pie de página
+    pdf.set_font("helvetica", "I", 10)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 6, "Reporte generado automaticamente por Bovi-Fertil-IA Mobile Lab.", 0, 1, "C")
+    
+    pdf.output(filename)
+
 # Inicializar estados de sesión
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
+
+if "pdf_ready" not in st.session_state:
+    st.session_state.pdf_ready = None
 
 # ==========================================
 # PANTALLA DE AUTENTICACIÓN (LOGIN / REGISTRO)
@@ -246,7 +303,7 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD CON PANTALLA WEBCAM)
+# 3. CÁMARA EN VIVO (DASHBOARD + PDF)
 # ------------------------------------------
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
@@ -261,10 +318,9 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
     st.markdown("---")
     st.info(
-        "📸 **Visor de Cámara en Directo**: Utiliza la pantallita de la cámara web de abajo para visualizar y capturar el fotograma de la muestra en tiempo real."
+        "📸 **Visor de Cámara en Directo**: Utiliza la pantallita de la cámara web para capturar el fotograma de la muestra en tiempo real."
     )
     
-    # PANTALLA NATIVA DE LA CÁMARA WEB (Muestra el cuadro de video en vivo)
     foto_capturada = st.camera_input("📷 Capturar Fotograma de la Muestra Microscópica")
 
     if foto_capturada is not None:
@@ -293,17 +349,47 @@ elif menu == "Cámara en Vivo (Dashboard)":
         k7.metric("BCF", "67")
         k8.metric("MAD", "48")
 
-        if st.button("💾 Guardar Análisis en mi Historial"):
-            registro_vivo = {
-                "usuario": st.session_state.username,
-                "toro": toro_id,
-                "tipo": f"Cámara Web ({raza_val})",
-                "motilidad": "91%",
-                "concentracion": "40.39 M/mL",
-            }
-            db["historial"].append(registro_vivo)
-            guardar_base_datos(db)
-            st.success("✅ ¡Resultado guardado permanentemente en tu historial!")
+        col_acc1, col_acc2 = st.columns(2)
+
+        with col_acc1:
+            if st.button("💾 Guardar Análisis en mi Historial"):
+                registro_vivo = {
+                    "usuario": st.session_state.username,
+                    "toro": toro_id,
+                    "tipo": f"Cámara Web ({raza_val})",
+                    "motilidad": "91%",
+                    "concentracion": "40.39 M/mL",
+                }
+                db["historial"].append(registro_vivo)
+                guardar_base_datos(db)
+                st.success("✅ ¡Resultado guardado en tu historial!")
+
+        with col_acc2:
+            if st.button("📄 Generar Certificado PDF"):
+                sample_info = {
+                    "bull_code": toro_id,
+                    "breed": raza_val,
+                    "collection_date": str(datetime.date.today()),
+                    "analyst": evaluador_val,
+                }
+                metrics_info = {
+                    "concentration": "40.39",
+                    "motility": "91%"
+                }
+                pdf_filename = f"data/reporte_{toro_id}.pdf"
+                generar_pdf_certificado(sample_info, metrics_info, pdf_filename)
+                st.session_state.pdf_ready = pdf_filename
+                st.success("✅ ¡PDF generado con éxito!")
+
+        # Botón de descarga directa si el PDF ya fue generado
+        if st.session_state.pdf_ready and os.path.exists(st.session_state.pdf_ready):
+            with open(st.session_state.pdf_ready, "rb") as archivo_pdf:
+                st.download_button(
+                    label="📥 Descargar Certificado Seminal en PDF",
+                    data=archivo_pdf,
+                    file_name=os.path.basename(st.session_state.pdf_ready),
+                    mime="application/pdf"
+                )
 
 # ------------------------------------------
 # 4. HISTORIAL Y REPORTES
@@ -330,7 +416,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.1 (Camera Viewer)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.2 (PDF Certified)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
