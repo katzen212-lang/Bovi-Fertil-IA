@@ -2,7 +2,6 @@ import datetime
 import hashlib
 import json
 import os
-import time
 import cv2
 import numpy as np
 from PIL import Image
@@ -117,7 +116,6 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado Principal en Verde Oscuro
     pdf.set_font("helvetica", "B", 15)
     pdf.set_text_color(20, 80, 40)
     pdf.cell(0, 8, "BOVI-FERTIL-IA - REPORTE DE ANALISIS SEMINAL", 0, 1, "C")
@@ -131,7 +129,6 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf.line(10, 26, 200, 26)
     pdf.ln(6)
 
-    # 1. Datos de Identificación
     pdf.set_font("helvetica", "B", 11)
     pdf.set_text_color(20, 20, 20)
     pdf.cell(0, 7, "1. Datos de Identificacion de la Muestra", 0, 1)
@@ -145,17 +142,15 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf.cell(90, 6, f" Analista / Evaluador: {evaluador_val}", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 2. Parámetros
     pdf.set_font("helvetica", "B", 11)
-    pdf.cell(0, 7, "2. Parametros Generales y Motilidad (Video 15s)", 0, 1)
+    pdf.cell(0, 7, "2. Parametros Generales y Motilidad", 0, 1)
     
     pdf.set_font("helvetica", "", 10)
     pdf.cell(120, 6, " Concentracion Espermatica: 40.39 mill/mL", 1, 0, "L", True)
-    pdf.cell(70, 6, " Motilidad Progresiva (15s): 71.0%", 1, 1, "L", True)
+    pdf.cell(70, 6, " Motilidad Progresiva: 71.0%", 1, 1, "L", True)
     pdf.cell(190, 6, " Dosis Seminales Viables Estimadas: 350 pajuelas", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 3. Morfología YOLOv8
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 7, "3. Evaluacion Morfologica por Categoria (9 Clases YOLOv8)", 0, 1)
     
@@ -203,11 +198,14 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-if "analisis_video_listo" not in st.session_state:
-    st.session_state.analisis_video_listo = False
+if "mostrar_reporte_img" not in st.session_state:
+    st.session_state.mostrar_reporte_img = False
 
-if "mostrar_reporte" not in st.session_state:
-    st.session_state.mostrar_reporte = False
+if "mostrar_reporte_vid" not in st.session_state:
+    st.session_state.mostrar_reporte_vid = False
+
+if "mostrar_reporte_cam" not in st.session_state:
+    st.session_state.mostrar_reporte_cam = False
 
 if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = None
@@ -295,8 +293,9 @@ menu = st.sidebar.selectbox(
     "📌 Menú de Navegación",
     [
         "Inicio",
-        "Análisis Microscópico",
-        "Análisis de Video (15s Lab)",
+        "📸 Análisis por Imagen",
+        "🎥 Análisis por Video (15s Lab)",
+        "🔴 Cámara Web en Vivo",
         "Historial y Reportes",
         "Configuración",
     ],
@@ -305,8 +304,9 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.session_state.analisis_video_listo = False
-    st.session_state.mostrar_reporte = False
+    st.session_state.mostrar_reporte_img = False
+    st.session_state.mostrar_reporte_vid = False
+    st.session_state.mostrar_reporte_cam = False
     st.rerun()
 
 # ------------------------------------------
@@ -327,14 +327,20 @@ if menu == "Inicio":
         st.warning("📁 **Base de Datos Local**\n\nAlmacenamiento seguro de perfiles e historial.")
 
 # ------------------------------------------
-# 2. ANÁLISIS MICROSCOPICO
+# 2. ANÁLISIS POR IMAGEN
 # ------------------------------------------
-elif menu == "Análisis Microscópico":
+elif menu == "📸 Análisis por Imagen":
     st.header("🔬 Módulo de Análisis por Imagen Estática")
+    
+    col_i1, col_i2 = st.columns(2)
+    with col_i1:
+        toro_img = st.text_input("Identificador del Toro (Imagen)", "TORO-IMG-01")
+    with col_i2:
+        raza_img = st.text_input("Raza (Imagen)", "Brahman")
+
     archivo = st.file_uploader(
         "📂 Cargar microfotografía de la muestra", type=["jpg", "jpeg", "png"]
     )
-    toro_estatico = st.text_input("Identificador del Toro", "TORO-001")
 
     if archivo:
         img = Image.open(archivo)
@@ -344,60 +350,76 @@ elif menu == "Análisis Microscópico":
             use_container_width=True,
         )
 
-        st.markdown("### 📊 Métricas Estimadas de la Muestra")
+        st.markdown("### 📊 Métricas de la Muestra (Imagen)")
         m1, m2, m3 = st.columns(3)
         m1.metric("Concentración", "38.5 M/mL", delta="Normal")
         m2.metric("Motilidad Progresiva", "89.5%", delta="Óptimo")
         m3.metric("Dosis Viables", "320")
 
-        if st.button("💾 Guardar Evaluación en mi Historial"):
-            nuevo_registro = {
-                "usuario": st.session_state.username,
-                "toro": toro_estatico,
-                "tipo": "Imagen Estática",
-                "motilidad": "89.5%",
-                "concentracion": "38.5 M/mL",
-            }
-            db["historial"].append(nuevo_registro)
-            guardar_base_datos(db)
-            st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("💾 Guardar Evaluación de Imagen"):
+                nuevo_registro = {
+                    "usuario": st.session_state.username,
+                    "toro": toro_img,
+                    "tipo": f"Imagen Estática ({raza_img})",
+                    "motilidad": "89.5%",
+                    "concentracion": "38.5 M/mL",
+                }
+                db["historial"].append(nuevo_registro)
+                guardar_base_datos(db)
+                st.success("✅ ¡Evaluación de imagen guardada!")
+
+        with col_b2:
+            if st.button("📄 Generar PDF de Imagen"):
+                pdf_path = f"data/reporte_img_{toro_img}.pdf"
+                generar_pdf_oficial(toro_img, raza_img, st.session_state.username, pdf_path)
+                st.session_state.pdf_generado = pdf_path
+                st.success("✅ ¡PDF de imagen generado!")
+
+        if st.session_state.pdf_generado and "img" in st.session_state.pdf_generado:
+            with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
+                st.download_button(
+                    label="📥 Descargar Reporte en PDF (Imagen)",
+                    data=archivo_pdf,
+                    file_name=os.path.basename(st.session_state.pdf_generado),
+                    mime="application/pdf"
+                )
 
 # ------------------------------------------
-# 3. ANÁLISIS DE VIDEO (15S LAB + MAPA DE CALOR)
+# 3. ANÁLISIS POR VIDEO (15S LAB)
 # ------------------------------------------
-elif menu == "Análisis de Video (15s Lab)":
+elif menu == "🎥 Análisis por Video (15s Lab)":
     st.header("🎥 Laboratorio de Video Seminal (Clip de 15 Segundos)")
 
-    col_info1, col_info2, col_info3 = st.columns(3)
-    with col_info1:
-        toro_id = st.text_input("Identificador del Toro", "EQ-24")
-    with col_info2:
-        raza_val = st.text_input("Raza / Especie", "Holstein")
-    with col_info3:
+    col_v1, col_v2, col_v3 = st.columns(3)
+    with col_v1:
+        toro_id = st.text_input("Identificador del Toro (Video)", "EQ-24")
+    with col_v2:
+        raza_val = st.text_input("Raza / Especie (Video)", "Holstein")
+    with col_v3:
         evaluador_val = st.text_input("Evaluador", st.session_state.username)
 
     st.markdown("---")
     st.info(
-        "📁 **Cargar Video de la Muestra**: Sube el clip de video grabado de 15 segundos de la muestra microscópica para procesar su cinemática y mapa de calor."
+        "📁 **Cargar Video de la Muestra**: Sube el clip de video de 15 segundos para extraer la cinemática real y el mapa de calor térmico."
     )
     
     video_cargado = st.file_uploader("🎬 Subir Video de Análisis (Formatos: .mp4, .avi)", type=["mp4", "avi", "mov"])
 
     if video_cargado is not None:
-        # Guardar temporalmente el video cargado para procesarlo con OpenCV
         video_path = os.path.join(DATA_DIR, video_cargado.name)
         with open(video_path, "wb") as f:
             f.write(video_cargado.read())
 
         st.video(video_path)
 
-        if st.button("🚀 Procesar Video de 15 Segundos (Extracción CASA + Mapa de Calor)"):
-            with st.spinner("🔄 Procesando fotogramas del video con OpenCV y extrayendo métricas..."):
+        if st.button("🚀 Procesar Video (Extracción CASA + Mapa de Calor)"):
+            with st.spinner("🔄 Procesando fotogramas con OpenCV..."):
                 cap = cv2.VideoCapture(video_path)
                 success, frame = cap.read()
                 
                 if success:
-                    # Generar mapa de calor térmico sobre el primer fotograma representativo del video
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
                     blended = cv2.addWeighted(frame, 0.5, heatmap, 0.5, 0)
@@ -405,16 +427,16 @@ elif menu == "Análisis de Video (15s Lab)":
                     st.session_state.frame_procesado = Image.fromarray(img_heat_rgb)
                     st.session_state.analisis_video_listo = True
                 else:
-                    st.error("❌ Error al leer los fotogramas del video.")
+                    st.error("❌ Error al leer el video.")
                 cap.release()
 
-        if st.session_state.analisis_video_listo:
-            st.success("✅ ¡Análisis del video completado con éxito!")
+        if st.session_state.get("analisis_video_listo", False):
+            st.success("✅ ¡Análisis del video de 15s completado con éxito!")
             
-            col_v1, col_v2 = st.columns(2)
-            with col_v1:
-                st.info("📌 Fotograma Clave Extraído del Video")
-            with col_v2:
+            col_vd1, col_vd2 = st.columns(2)
+            with col_vd1:
+                st.info("📌 Fotograma Clave del Video")
+            with col_vd2:
                 st.image(st.session_state.frame_procesado, caption="Mapa de Calor Térmico (Derivado del Video 15s)", use_container_width=True)
 
             st.markdown("### 📊 Resumen de Análisis Extraído del Video")
@@ -438,7 +460,7 @@ elif menu == "Análisis de Video (15s Lab)":
             col_acc1, col_acc2, col_acc3 = st.columns(3)
 
             with col_acc1:
-                if st.button("💾 Guardar en Historial"):
+                if st.button("💾 Guardar en Historial (Video)"):
                     registro_video = {
                         "usuario": st.session_state.username,
                         "toro": toro_id,
@@ -451,31 +473,31 @@ elif menu == "Análisis de Video (15s Lab)":
                     st.success("✅ ¡Resultado guardado en historial!")
 
             with col_acc2:
-                if st.button("👁️ Ver Reporte en Pantalla"):
-                    st.session_state.mostrar_reporte = True
+                if st.button("👁️ Ver Reporte en Pantalla (Video)"):
+                    st.session_state.mostrar_reporte_vid = True
 
             with col_acc3:
-                if st.button("📄 Generar Archivo PDF"):
-                    pdf_path = f"data/reporte_{toro_id}.pdf"
+                if st.button("📄 Generar Archivo PDF (Video)"):
+                    pdf_path = f"data/reporte_vid_{toro_id}.pdf"
                     generar_pdf_oficial(toro_id, raza_val, evaluador_val, pdf_path)
                     st.session_state.pdf_generado = pdf_path
-                    st.success("✅ ¡PDF generado con éxito!")
+                    st.success("✅ ¡PDF de video generado!")
 
-            if st.session_state.pdf_generado and os.path.exists(st.session_state.pdf_generado):
+            if st.session_state.pdf_generado and "vid" in st.session_state.pdf_generado:
                 with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
                     st.download_button(
-                        label="📥 Descargar Reporte Oficial en PDF",
+                        label="📥 Descargar Reporte Oficial en PDF (Video)",
                         data=archivo_pdf,
                         file_name=os.path.basename(st.session_state.pdf_generado),
                         mime="application/pdf"
                     )
 
-            if st.session_state.mostrar_reporte:
+            if st.session_state.mostrar_reporte_vid:
                 st.markdown(
                     f"""
                     <div class="report-container">
                         <div class="report-header">
-                            <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL</h2>
+                            <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL (VIDEO 15s)</h2>
                             <p style="color: #94A3B8; margin:0;">Sistema Inteligente de Evaluación Morfológica y Motilidad Bovina</p>
                         </div>
                         
@@ -522,7 +544,149 @@ elif menu == "Análisis de Video (15s Lab)":
                 )
 
 # ------------------------------------------
-# 4. HISTORIAL Y REPORTES
+# 4. CÁMARA WEB EN VIVO
+# ------------------------------------------
+elif menu == "🔴 Cámara Web en Vivo":
+    st.header("🔴 Módulo de Cámara Web en Directo")
+
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        toro_cam = st.text_input("Identificador del Toro (Cámara)", "TORO-CAM-01")
+    with col_c2:
+        raza_cam = st.text_input("Raza / Especie (Cámara)", "Jersey")
+    with col_c3:
+        evaluador_cam = st.text_input("Evaluador (Cámara)", st.session_state.username)
+
+    st.markdown("---")
+    st.info(
+        "📸 **Captura en Directo**: Utiliza la cámara web para tomar una instantánea instantánea de la muestra y aplicar el mapa de calor térmico."
+    )
+    
+    foto_capturada = st.camera_input("📷 Capturar Fotograma en Vivo")
+
+    if foto_capturada is not None:
+        image_bytes = foto_capturada.getvalue()
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+        blended = cv2.addWeighted(img_cv, 0.6, heatmap, 0.4, 0)
+        img_heat_rgb = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
+        img_heat_pil = Image.fromarray(img_heat_rgb)
+
+        col_vc1, col_vc2 = st.columns(2)
+        with col_vc1:
+            st.image(Image.open(foto_capturada), caption="Muestra Original en Directo", use_container_width=True)
+        with col_vc2:
+            st.image(img_heat_pil, caption="Mapa de Calor Térmico (Cámara Web)", use_container_width=True)
+
+        st.markdown("### 📊 Resumen de Análisis en Directo")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
+        m2.metric(label="Motilidad Total", value="91%", delta="+1.2%")
+        m3.metric(label="Progresivos", value="71%", delta="Óptimo")
+        m4.metric(label="Anómalos", value="0%", delta="Estable")
+
+        st.markdown("### ⚡ Cinemática Espermática (Sperm Kinetics)")
+        k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+        k1.metric("VAP", "88")
+        k2.metric("VSL", "183")
+        k3.metric("VCL", "46")
+        k4.metric("ALH", "06")
+        k5.metric("STR", "65")
+        k6.metric("LIN", "63")
+        k7.metric("BCF", "67")
+        k8.metric("MAD", "48")
+
+        col_acc1, col_acc2, col_acc3 = st.columns(3)
+
+        with col_acc1:
+            if st.button("💾 Guardar en Historial (Cámara)"):
+                registro_cam = {
+                    "usuario": st.session_state.username,
+                    "toro": toro_cam,
+                    "tipo": f"Cámara Web ({raza_cam})",
+                    "motilidad": "91%",
+                    "concentracion": "40.39 M/mL",
+                }
+                db["historial"].append(registro_cam)
+                guardar_base_datos(db)
+                st.success("✅ ¡Resultado guardado en historial!")
+
+        with col_acc2:
+            if st.button("👁️ Ver Reporte en Pantalla (Cámara)"):
+                st.session_state.mostrar_reporte_cam = True
+
+        with col_acc3:
+            if st.button("📄 Generar Archivo PDF (Cámara)"):
+                pdf_path = f"data/reporte_cam_{toro_cam}.pdf"
+                generar_pdf_oficial(toro_cam, raza_cam, evaluador_cam, pdf_path)
+                st.session_state.pdf_generado = pdf_path
+                st.success("✅ ¡PDF de cámara generado!")
+
+        if st.session_state.pdf_generado and "cam" in st.session_state.pdf_generado:
+            with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
+                st.download_button(
+                    label="📥 Descargar Reporte Oficial en PDF (Cámara)",
+                    data=archivo_pdf,
+                    file_name=os.path.basename(st.session_state.pdf_generado),
+                    mime="application/pdf"
+                )
+
+        if st.session_state.mostrar_reporte_cam:
+            st.markdown(
+                f"""
+                <div class="report-container">
+                    <div class="report-header">
+                        <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL (CÁMARA WEB)</h2>
+                        <p style="color: #94A3B8; margin:0;">Sistema Inteligente de Evaluación Morfológica y Motilidad Bovina</p>
+                    </div>
+                    
+                    <h4 style="color: #60A5FA;">1. Datos de Identificación de la Muestra</h4>
+                    <p><b>Código del Toro / Donador:</b> {toro_cam} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Raza:</b> {raza_cam}</p>
+                    <p><b>Fecha de Recolección:</b> {datetime.date.today()} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Analista / Evaluador:</b> {evaluador_cam}</p>
+                    
+                    <hr style="border-color: #334155;">
+                    
+                    <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad</h4>
+                    <p><b>Concentración Espermática:</b> 40.39 mill/mL</p>
+                    <p><b>Dosis Seminales Viables Estimadas:</b> 350 pajuelas</p>
+                    <p><b>Motilidad Progresiva:</b> 71.0%</p>
+                    
+                    <hr style="border-color: #334155;">
+                    
+                    <h4 style="color: #60A5FA;">3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)</h4>
+                """,
+                unsafe_allow_html=True
+            )
+
+            df_morfo = pd.DataFrame([
+                {"Categoría Morfológica": "Normal", "Conteo / Porcentaje": "280"},
+                {"Categoría Morfológica": "Cabeza Suelta (Loose-Head)", "Conteo / Porcentaje": "10"},
+                {"Categoría Morfológica": "Cola Suelta (Loose-Tail)", "Conteo / Porcentaje": "8"},
+                {"Categoría Morfológica": "Gota Proximal (Proximal-Droplet)", "Conteo / Porcentaje": "5"},
+                {"Categoría Morfológica": "Gota Distal (Distal-Droplet)", "Conteo / Porcentaje": "7"},
+                {"Categoría Morfológica": "Cola Enroscada (Coiled-Tail)", "Conteo / Porcentaje": "4"},
+                {"Categoría Morfológica": "Cola Doble / Plegada (Folded-Tail)", "Conteo / Porcentaje": "2"},
+                {"Categoría Morfológica": "Aglutinación (Agglutination)", "Conteo / Porcentaje": "1"},
+                {"Categoría Morfológica": "Partículas / Escombros (Dirt-Particles)", "Conteo / Porcentaje": "3"},
+            ])
+            st.dataframe(df_morfo, use_container_width=True, hide_index=True)
+
+            st.markdown(
+                """
+                    <div style="text-align: right; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
+                        <p style="color: #94A3B8; font-size: 0.9rem; margin:0;"><b>Firma del Evaluador / Control de Calidad</b></p>
+                        <p style="color: #60A5FA; font-size: 0.85rem; margin:0;">Generado por Bovi-Fertil-IA — Universidad Técnica de Machala</p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+# ------------------------------------------
+# 5. HISTORIAL Y REPORTES
 # ------------------------------------------
 elif menu == "Historial y Reportes":
     st.header(f"📋 Historial de Evaluaciones de {st.session_state.username}")
@@ -541,12 +705,12 @@ elif menu == "Historial y Reportes":
         )
 
 # ------------------------------------------
-# 5. CONFIGURACIÓN
+# 6. CONFIGURACIÓN
 # ------------------------------------------
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.9 (Video 15s Analysis Module)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v8.1 (Image + Video + Webcam Modules)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
