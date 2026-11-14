@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import streamlit as st
+from fpdf import FPDF
 
 # Configuración general de la página en modo ancho
 st.set_page_config(
@@ -50,7 +51,6 @@ st.markdown(
     div.stMetric [data-testid="stMetricValue"] {
         color: #F8FAFC !important;
     }
-    /* Estilo para el Reporte / Certificado en Interfaz */
     .report-container {
         background-color: #0F172A;
         border: 2px solid #3B82F6;
@@ -109,13 +109,82 @@ def hash_password(password):
 
 db = cargar_base_datos()
 
+# ==========================================
+# GENERADOR DE PDF OFICIAL (FPDF)
+# ==========================================
+def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado
+    pdf.set_font("helvetica", "B", 16)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 8, "BOVI-FERTIL-IA - REPORTE DE ANALISIS SEMINAL", 0, 1, "C")
+    pdf.set_font("helvetica", "I", 10)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 6, "Sistema Inteligente de Evaluacion Morfologica y Motilidad Bovina", 0, 1, "C")
+    pdf.ln(5)
+
+    # 1. Datos
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 7, "1. Datos de Identificacion de la Muestra", 0, 1)
+    pdf.set_font("helvetica", "", 10)
+    pdf.cell(0, 6, f"Codigo del Toro / Donador: {toro_id}    |    Raza: {raza_val}", 0, 1)
+    pdf.cell(0, 6, f"Fecha de Recoleccion: {datetime.date.today()}    |    Analista: {evaluador_val}", 0, 1)
+    pdf.ln(5)
+
+    # 2. Parámetros
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 7, "2. Parametros Generales y Motilidad", 0, 1)
+    pdf.set_font("helvetica", "", 10)
+    pdf.cell(0, 6, "Concentracion Espermatica: 40.39 mill/mL", 0, 1)
+    pdf.cell(0, 6, "Dosis Seminales Viables Estimadas: 350 pajuelas", 0, 1)
+    pdf.cell(0, 6, "Motilidad Progresiva: 71.0%", 0, 1)
+    pdf.ln(5)
+
+    # 3. Morfología YOLOv8
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 7, "3. Evaluacion Morfologica por Categoria (9 Clases YOLOv8)", 0, 1)
+    
+    categorias = [
+        ("Normal", "280"),
+        ("Cabeza Suelta (Loose-Head)", "10"),
+        ("Cola Suelta (Loose-Tail)", "8"),
+        ("Gota Proximal (Proximal-Droplet)", "5"),
+        ("Gota Distal (Distal-Droplet)", "7"),
+        ("Cola Enroscada (Coiled-Tail)", "4"),
+        ("Cola Doble / Plegada (Folded-Tail)", "2"),
+        ("Aglutinacion (Agglutination)", "1"),
+        ("Particulas / Escombros (Dirt-Particles)", "3")
+    ]
+
+    pdf.set_font("helvetica", "B", 9)
+    pdf.cell(120, 6, "Categoria Morfologica", 1, 0, "L")
+    pdf.cell(70, 6, "Conteo / Porcentaje", 1, 1, "C")
+
+    pdf.set_font("helvetica", "", 9)
+    for cat, val in categorias:
+        pdf.cell(120, 5, f" {cat}", 1, 0, "L")
+        pdf.cell(70, 5, val, 1, 1, "C")
+
+    pdf.ln(15)
+    pdf.set_font("helvetica", "I", 9)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(0, 5, "Firma del Evaluador / Control de Calidad", 0, 1, "R")
+    pdf.cell(0, 5, "Generado por Bovi-Fertil-IA - Universidad Tecnica de Machala", 0, 1, "C")
+
+    pdf.output(filename)
+
 # Inicializar estados de sesión
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-if "mostrar_reporte_pdf" not in st.session_state:
-    st.session_state.mostrar_reporte_pdf = False
+if "mostrar_reporte" not in st.session_state:
+    st.session_state.mostrar_reporte = False
+
+if "pdf_generado" not in st.session_state:
+    st.session_state.pdf_generado = None
 
 # ==========================================
 # PANTALLA DE AUTENTICACIÓN (LOGIN / REGISTRO)
@@ -210,7 +279,7 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.session_state.mostrar_reporte_pdf = False
+    st.session_state.mostrar_reporte = False
     st.rerun()
 
 # ------------------------------------------
@@ -267,7 +336,7 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ REPORTE PDF)
+# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ + PDF DOWNLOAD)
 # ------------------------------------------
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
@@ -329,15 +398,28 @@ elif menu == "Cámara en Vivo (Dashboard)":
                 st.success("✅ ¡Resultado guardado!")
 
         with col_acc2:
-            if st.button("📄 Ver Reporte Oficial en Pantalla"):
-                st.session_state.mostrar_reporte_pdf = True
+            if st.button("👁️ Ver Reporte en Pantalla"):
+                st.session_state.mostrar_reporte = True
 
         with col_acc3:
-            if st.button("🔄 Ocultar Reporte"):
-                st.session_state.mostrar_reporte_pdf = False
+            if st.button("📄 Generar Archivo PDF"):
+                pdf_path = f"data/reporte_{toro_id}.pdf"
+                generar_pdf_oficial(toro_id, raza_val, evaluador_val, pdf_path)
+                st.session_state.pdf_generado = pdf_path
+                st.success("✅ ¡PDF generado con éxito!")
 
-        # INTERFAZ VISUAL DEL REPORTE OFICIAL TIPO PDF
-        if st.session_state.mostrar_reporte_pdf:
+        # Botón de descarga directa si el PDF ya fue generado
+        if st.session_state.pdf_generado and os.path.exists(st.session_state.pdf_generado):
+            with open(st.session_state.pdf_generado, "rb") as archivo_pdf:
+                st.download_button(
+                    label="📥 Descargar Reporte Oficial en PDF",
+                    data=archivo_pdf,
+                    file_name=os.path.basename(st.session_state.pdf_generado),
+                    mime="application/pdf"
+                )
+
+        # INTERFAZ VISUAL DEL REPORTE OFICIAL EN PANTALLA
+        if st.session_state.mostrar_reporte:
             st.markdown(
                 f"""
                 <div class="report-container">
@@ -364,7 +446,6 @@ elif menu == "Cámara en Vivo (Dashboard)":
                 unsafe_allow_html=True
             )
 
-            # Tabla interactiva con las 9 categorías morfológicas de YOLOv8
             df_morfo = pd.DataFrame([
                 {"Categoría Morfológica": "Normal", "Conteo / Porcentaje": "280"},
                 {"Categoría Morfológica": "Cabeza Suelta (Loose-Head)", "Conteo / Porcentaje": "10"},
@@ -414,7 +495,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.4 (PDF UI Integration)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.5 (UI + PDF Download)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
