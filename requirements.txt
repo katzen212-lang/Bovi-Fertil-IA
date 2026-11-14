@@ -1,4 +1,6 @@
-opencv-python-headless
 streamlit
+opencv-python-headless
+numpy
 pandas
 Pillow
+fpdf2
