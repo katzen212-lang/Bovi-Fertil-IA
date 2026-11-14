@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import streamlit as st
-from fpdf import FPDF
 
 # Configuración general de la página en modo ancho
 st.set_page_config(
@@ -51,6 +50,23 @@ st.markdown(
     div.stMetric [data-testid="stMetricValue"] {
         color: #F8FAFC !important;
     }
+    /* Estilo para el Reporte / Certificado en Interfaz */
+    .report-container {
+        background-color: #0F172A;
+        border: 2px solid #3B82F6;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+        color: #F8FAFC;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    .report-header {
+        text-align: center;
+        border-bottom: 2px solid #334155;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -93,66 +109,13 @@ def hash_password(password):
 
 db = cargar_base_datos()
 
-# ==========================================
-# GENERADOR DE CERTIFICADO PDF OFICIAL
-# ==========================================
-def generar_pdf_certificado(sample_data, metrics, filename):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Encabezado del reporte
-    pdf.set_font("helvetica", "B", 18)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 10, "BOVI-FERTIL-IA", 0, 1, "C")
-    pdf.set_font("helvetica", "I", 12)
-    pdf.set_text_color(100, 116, 139)
-    pdf.cell(0, 8, "Certificado Oficial de Analisis Seminal Bovino", 0, 1, "C")
-    pdf.ln(10)
-
-    # Datos de la muestra
-    pdf.set_font("helvetica", "B", 12)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 8, "1. Datos Generales de la Muestra", 0, 1)
-    pdf.set_font("helvetica", "", 11)
-    pdf.cell(0, 7, f"Identificador del Toro: {sample_data.get('bull_code')}", 0, 1)
-    pdf.cell(0, 7, f"Raza / Especie: {sample_data.get('breed')}", 0, 1)
-    pdf.cell(0, 7, f"Fecha de Evaluacion: {sample_data.get('collection_date')}", 0, 1)
-    pdf.cell(0, 7, f"Analista Responsable: {sample_data.get('analyst')}", 0, 1)
-    pdf.ln(8)
-
-    # Resultados y Métricas
-    pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 8, "2. Resultados de Evaluacion en Tiempo Real", 0, 1)
-    pdf.set_font("helvetica", "", 11)
-    pdf.cell(0, 7, f"Concentracion Espermatica: {metrics.get('concentration')} M/mL", 0, 1)
-    pdf.cell(0, 7, f"Motilidad Total / Progresiva: {metrics.get('motility')}", 0, 1)
-    pdf.cell(0, 7, "Estado de Viabilidad: Optimo / Calidad Alta", 0, 1)
-    pdf.ln(8)
-
-    # Cinemática CASA
-    pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 8, "3. Parametros Cinematicos (CASA)", 0, 1)
-    pdf.set_font("helvetica", "", 11)
-    pdf.cell(0, 7, "VAP (Velocidad promedio de trayectoria): 88 um/s", 0, 1)
-    pdf.cell(0, 7, "VSL (Velocidad lineal recta): 183 um/s", 0, 1)
-    pdf.cell(0, 7, "VCL (Velocidad curvilinea): 46 um/s", 0, 1)
-    pdf.cell(0, 7, "STR (Rectitud): 65% | LIN (Linealidad): 63%", 0, 1)
-    pdf.ln(15)
-
-    # Pie de página
-    pdf.set_font("helvetica", "I", 10)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 6, "Reporte generado automaticamente por Bovi-Fertil-IA Mobile Lab.", 0, 1, "C")
-    
-    pdf.output(filename)
-
 # Inicializar estados de sesión
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-if "pdf_ready" not in st.session_state:
-    st.session_state.pdf_ready = None
+if "mostrar_reporte_pdf" not in st.session_state:
+    st.session_state.mostrar_reporte_pdf = False
 
 # ==========================================
 # PANTALLA DE AUTENTICACIÓN (LOGIN / REGISTRO)
@@ -247,6 +210,7 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
+    st.session_state.mostrar_reporte_pdf = False
     st.rerun()
 
 # ------------------------------------------
@@ -303,7 +267,7 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD + PDF)
+# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ REPORTE PDF)
 # ------------------------------------------
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
@@ -349,10 +313,10 @@ elif menu == "Cámara en Vivo (Dashboard)":
         k7.metric("BCF", "67")
         k8.metric("MAD", "48")
 
-        col_acc1, col_acc2 = st.columns(2)
+        col_acc1, col_acc2, col_acc3 = st.columns(3)
 
         with col_acc1:
-            if st.button("💾 Guardar Análisis en mi Historial"):
+            if st.button("💾 Guardar en Historial"):
                 registro_vivo = {
                     "usuario": st.session_state.username,
                     "toro": toro_id,
@@ -362,34 +326,68 @@ elif menu == "Cámara en Vivo (Dashboard)":
                 }
                 db["historial"].append(registro_vivo)
                 guardar_base_datos(db)
-                st.success("✅ ¡Resultado guardado en tu historial!")
+                st.success("✅ ¡Resultado guardado!")
 
         with col_acc2:
-            if st.button("📄 Generar Certificado PDF"):
-                sample_info = {
-                    "bull_code": toro_id,
-                    "breed": raza_val,
-                    "collection_date": str(datetime.date.today()),
-                    "analyst": evaluador_val,
-                }
-                metrics_info = {
-                    "concentration": "40.39",
-                    "motility": "91%"
-                }
-                pdf_filename = f"data/reporte_{toro_id}.pdf"
-                generar_pdf_certificado(sample_info, metrics_info, pdf_filename)
-                st.session_state.pdf_ready = pdf_filename
-                st.success("✅ ¡PDF generado con éxito!")
+            if st.button("📄 Ver Reporte Oficial en Pantalla"):
+                st.session_state.mostrar_reporte_pdf = True
 
-        # Botón de descarga directa si el PDF ya fue generado
-        if st.session_state.pdf_ready and os.path.exists(st.session_state.pdf_ready):
-            with open(st.session_state.pdf_ready, "rb") as archivo_pdf:
-                st.download_button(
-                    label="📥 Descargar Certificado Seminal en PDF",
-                    data=archivo_pdf,
-                    file_name=os.path.basename(st.session_state.pdf_ready),
-                    mime="application/pdf"
-                )
+        with col_acc3:
+            if st.button("🔄 Ocultar Reporte"):
+                st.session_state.mostrar_reporte_pdf = False
+
+        # INTERFAZ VISUAL DEL REPORTE OFICIAL TIPO PDF
+        if st.session_state.mostrar_reporte_pdf:
+            st.markdown(
+                f"""
+                <div class="report-container">
+                    <div class="report-header">
+                        <h2>🔬 BOVI-FERTIL-IA — REPORTE DE ANÁLISIS SEMINAL</h2>
+                        <p style="color: #94A3B8; margin:0;">Sistema Inteligente de Evaluación Morfológica y Motilidad Bovina</p>
+                    </div>
+                    
+                    <h4 style="color: #60A5FA;">1. Datos de Identificación de la Muestra</h4>
+                    <p><b>Código del Toro / Donador:</b> {toro_id} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Raza:</b> {raza_val}</p>
+                    <p><b>Fecha de Recolección:</b> {datetime.date.today()} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Analista / Evaluador:</b> {evaluador_val}</p>
+                    
+                    <hr style="border-color: #334155;">
+                    
+                    <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad</h4>
+                    <p><b>Concentración Espermática:</b> 40.39 mill/mL</p>
+                    <p><b>Dosis Seminales Viables Estimadas:</b> 350 pajuelas</p>
+                    <p><b>Motilidad Progresiva:</b> 71.0%</p>
+                    
+                    <hr style="border-color: #334155;">
+                    
+                    <h4 style="color: #60A5FA;">3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)</h4>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # Tabla interactiva con las 9 categorías morfológicas de YOLOv8
+            df_morfo = pd.DataFrame([
+                {"Categoría Morfológica": "Normal", "Conteo / Porcentaje": "280"},
+                {"Categoría Morfológica": "Cabeza Suelta (Loose-Head)", "Conteo / Porcentaje": "10"},
+                {"Categoría Morfológica": "Cola Suelta (Loose-Tail)", "Conteo / Porcentaje": "8"},
+                {"Categoría Morfológica": "Gota Proximal (Proximal-Droplet)", "Conteo / Porcentaje": "5"},
+                {"Categoría Morfológica": "Gota Distal (Distal-Droplet)", "Conteo / Porcentaje": "7"},
+                {"Categoría Morfológica": "Cola Enroscada (Coiled-Tail)", "Conteo / Porcentaje": "4"},
+                {"Categoría Morfológica": "Cola Doble / Plegada (Folded-Tail)", "Conteo / Porcentaje": "2"},
+                {"Categoría Morfológica": "Aglutinación (Agglutination)", "Conteo / Porcentaje": "1"},
+                {"Categoría Morfológica": "Partículas / Escombros (Dirt-Particles)", "Conteo / Porcentaje": "3"},
+            ])
+            st.dataframe(df_morfo, use_container_width=True, hide_index=True)
+
+            st.markdown(
+                """
+                    <div style="text-align: right; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
+                        <p style="color: #94A3B8; font-size: 0.9rem; margin:0;"><b>Firma del Evaluador / Control de Calidad</b></p>
+                        <p style="color: #60A5FA; font-size: 0.85rem; margin:0;">Generado por Bovi-Fertil-IA — Universidad Técnica de Machala</p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 # ------------------------------------------
 # 4. HISTORIAL Y REPORTES
@@ -416,7 +414,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.2 (PDF Certified)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.4 (PDF UI Integration)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
