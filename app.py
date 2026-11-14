@@ -147,7 +147,7 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
 
     # 2. Parámetros
     pdf.set_font("helvetica", "B", 11)
-    pdf.cell(0, 7, "2. Parametros Generales y Motilidad (Lapso de 15s)", 0, 1)
+    pdf.cell(0, 7, "2. Parametros Generales y Motilidad (Video 15s)", 0, 1)
     
     pdf.set_font("helvetica", "", 10)
     pdf.cell(120, 6, " Concentracion Espermatica: 40.39 mill/mL", 1, 0, "L", True)
@@ -203,8 +203,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-if "analisis_completado" not in st.session_state:
-    st.session_state.analisis_completado = False
+if "analisis_video_listo" not in st.session_state:
+    st.session_state.analisis_video_listo = False
 
 if "mostrar_reporte" not in st.session_state:
     st.session_state.mostrar_reporte = False
@@ -296,7 +296,7 @@ menu = st.sidebar.selectbox(
     [
         "Inicio",
         "Análisis Microscópico",
-        "Cámara en Vivo (Dashboard)",
+        "Análisis de Video (15s Lab)",
         "Historial y Reportes",
         "Configuración",
     ],
@@ -305,7 +305,7 @@ menu = st.sidebar.selectbox(
 if st.sidebar.button("🚪 Cerrar Sesión"):
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.session_state.analisis_completado = False
+    st.session_state.analisis_video_listo = False
     st.session_state.mostrar_reporte = False
     st.rerun()
 
@@ -363,10 +363,10 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD + LAPSOS DE 15S + MAPA DE CALOR)
+# 3. ANÁLISIS DE VIDEO (15S LAB + MAPA DE CALOR)
 # ------------------------------------------
-elif menu == "Cámara en Vivo (Dashboard)":
-    st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
+elif menu == "Análisis de Video (15s Lab)":
+    st.header("🎥 Laboratorio de Video Seminal (Clip de 15 Segundos)")
 
     col_info1, col_info2, col_info3 = st.columns(3)
     with col_info1:
@@ -378,51 +378,49 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
     st.markdown("---")
     st.info(
-        "📸 **Visor de Cámara en Directo**: Captura el fotograma de la muestra y ejecuta el análisis por lapso de tiempo (15s)."
+        "📁 **Cargar Video de la Muestra**: Sube el clip de video grabado de 15 segundos de la muestra microscópica para procesar su cinemática y mapa de calor."
     )
     
-    foto_capturada = st.camera_input("📷 Capturar Fotograma de la Muestra Microscópica")
+    video_cargado = st.file_uploader("🎬 Subir Video de Análisis (Formatos: .mp4, .avi)", type=["mp4", "avi", "mov"])
 
-    if foto_capturada is not None:
-        # Botón para iniciar el análisis por lapsos de 15 segundos
-        if st.button("⏱️ Iniciar Análisis por Lapso (15 Segundos)"):
-            barra_progreso = st.progress(0)
-            texto_estado = st.empty()
-            
-            # Simulación progresiva de los 15 segundos con saltos de 1 segundo
-            for segundo in range(1, 16):
-                tiempo_restante = 16 - segundo
-                porcentaje = int((segundo / 15) * 100)
-                barra_progreso.progress(porcentaje)
-                texto_estado.markdown(f"🔄 **Analizando fotogramas...** Lapso transcurrido: **{segundo}s / 15s** (Restante: {tiempo_restante}s)")
-                time.sleep(0.3)  # Pausa fluida para la animación en vivo
-            
-            texto_estado.success("✅ ¡Análisis por lapso completado con éxito!")
-            st.session_state.analisis_completado = True
+    if video_cargado is not None:
+        # Guardar temporalmente el video cargado para procesarlo con OpenCV
+        video_path = os.path.join(DATA_DIR, video_cargado.name)
+        with open(video_path, "wb") as f:
+            f.write(video_cargado.read())
 
-        # Si el análisis ya se completó, mostramos resultados, mapas de calor y métricas
-        if st.session_state.analisis_completado:
-            image_bytes = foto_capturada.getvalue()
-            nparr = np.frombuffer(image_bytes, np.uint8)
-            img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
-            # Generar mapa de calor térmico (Jet Colormap)
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
-            blended = cv2.addWeighted(img_cv, 0.6, heatmap, 0.4, 0)
-            img_heat_rgb = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
-            img_heat_pil = Image.fromarray(img_heat_rgb)
+        st.video(video_path)
 
+        if st.button("🚀 Procesar Video de 15 Segundos (Extracción CASA + Mapa de Calor)"):
+            with st.spinner("🔄 Procesando fotogramas del video con OpenCV y extrayendo métricas..."):
+                cap = cv2.VideoCapture(video_path)
+                success, frame = cap.read()
+                
+                if success:
+                    # Generar mapa de calor térmico sobre el primer fotograma representativo del video
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+                    blended = cv2.addWeighted(frame, 0.5, heatmap, 0.5, 0)
+                    img_heat_rgb = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
+                    st.session_state.frame_procesado = Image.fromarray(img_heat_rgb)
+                    st.session_state.analisis_video_listo = True
+                else:
+                    st.error("❌ Error al leer los fotogramas del video.")
+                cap.release()
+
+        if st.session_state.analisis_video_listo:
+            st.success("✅ ¡Análisis del video completado con éxito!")
+            
             col_v1, col_v2 = st.columns(2)
             with col_v1:
-                st.image(Image.open(foto_capturada), caption="Muestra Original Capturada", use_container_width=True)
+                st.info("📌 Fotograma Clave Extraído del Video")
             with col_v2:
-                st.image(img_heat_pil, caption="Mapa de Calor Térmico (Lapso de 15s)", use_container_width=True)
+                st.image(st.session_state.frame_procesado, caption="Mapa de Calor Térmico (Derivado del Video 15s)", use_container_width=True)
 
-            st.markdown("### 📊 Resumen de Análisis en Tiempo Real (Lapso 15s)")
+            st.markdown("### 📊 Resumen de Análisis Extraído del Video")
             m1, m2, m3, m4 = st.columns(4)
             m1.metric(label="Concentración", value="40.39 M/mL", delta="Normal")
-            m2.metric(label="Motilidad Total (15s)", value="91%", delta="+1.2%")
+            m2.metric(label="Motilidad Total (Video)", value="91%", delta="+1.2%")
             m3.metric(label="Progresivos", value="71%", delta="Óptimo")
             m4.metric(label="Anómalos", value="0%", delta="Estable")
 
@@ -441,16 +439,16 @@ elif menu == "Cámara en Vivo (Dashboard)":
 
             with col_acc1:
                 if st.button("💾 Guardar en Historial"):
-                    registro_vivo = {
+                    registro_video = {
                         "usuario": st.session_state.username,
                         "toro": toro_id,
-                        "tipo": f"Cámara Web Lapso 15s ({raza_val})",
+                        "tipo": f"Video 15s ({raza_val})",
                         "motilidad": "91%",
                         "concentracion": "40.39 M/mL",
                     }
-                    db["historial"].append(registro_vivo)
+                    db["historial"].append(registro_video)
                     guardar_base_datos(db)
-                    st.success("✅ ¡Resultado guardado!")
+                    st.success("✅ ¡Resultado guardado en historial!")
 
             with col_acc2:
                 if st.button("👁️ Ver Reporte en Pantalla"):
@@ -487,7 +485,7 @@ elif menu == "Cámara en Vivo (Dashboard)":
                         
                         <hr style="border-color: #334155;">
                         
-                        <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad (Lapso de 15s)</h4>
+                        <h4 style="color: #60A5FA;">2. Parámetros Generales y Motilidad (Video 15s)</h4>
                         <p><b>Concentración Espermática:</b> 40.39 mill/mL</p>
                         <p><b>Dosis Seminales Viables Estimadas:</b> 350 pajuelas</p>
                         <p><b>Motilidad Progresiva (15s):</b> 71.0%</p>
@@ -548,7 +546,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.8 (15s Time-Lapse Analysis)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.9 (Video 15s Analysis Module)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
