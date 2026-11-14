@@ -110,39 +110,53 @@ def hash_password(password):
 db = cargar_base_datos()
 
 # ==========================================
-# GENERADOR DE PDF OFICIAL (FPDF)
+# GENERADOR DE PDF IDÉNTICO AL MODELO OFICIAL
 # ==========================================
 def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado
-    pdf.set_font("helvetica", "B", 16)
-    pdf.set_text_color(30, 41, 59)
+    # Encabezado Principal en Verde Oscuro (Estilo Documento Formal)
+    pdf.set_font("helvetica", "B", 15)
+    pdf.set_text_color(20, 80, 40)
     pdf.cell(0, 8, "BOVI-FERTIL-IA - REPORTE DE ANALISIS SEMINAL", 0, 1, "C")
+    
     pdf.set_font("helvetica", "I", 10)
-    pdf.set_text_color(100, 116, 139)
+    pdf.set_text_color(90, 90, 90)
     pdf.cell(0, 6, "Sistema Inteligente de Evaluacion Morfologica y Motilidad Bovina", 0, 1, "C")
-    pdf.ln(5)
+    
+    # Línea horizontal verde divisoria
+    pdf.set_draw_color(34, 139, 34)
+    pdf.set_line_width(0.8)
+    pdf.line(10, 26, 200, 26)
+    pdf.ln(6)
 
-    # 1. Datos
+    # 1. Datos de Identificación
     pdf.set_font("helvetica", "B", 11)
+    pdf.set_text_color(20, 20, 20)
     pdf.cell(0, 7, "1. Datos de Identificacion de la Muestra", 0, 1)
+    
     pdf.set_font("helvetica", "", 10)
-    pdf.cell(0, 6, f"Codigo del Toro / Donador: {toro_id}    |    Raza: {raza_val}", 0, 1)
-    pdf.cell(0, 6, f"Fecha de Recoleccion: {datetime.date.today()}    |    Analista: {evaluador_val}", 0, 1)
+    pdf.set_fill_color(245, 247, 245)
+    
+    # Tabla seccion 1 (2 filas con cajas)
+    pdf.cell(100, 6, f" Codigo del Toro / Donador: {toro_id}", 1, 0, "L", True)
+    pdf.cell(90, 6, f" Raza: {raza_val}", 1, 1, "L", True)
+    pdf.cell(100, 6, f" Fecha de Recoleccion: {datetime.date.today()}", 1, 0, "L", True)
+    pdf.cell(90, 6, f" Analista / Evaluador: {evaluador_val}", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 2. Parámetros
+    # 2. Parámetros Generales y Motilidad
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 7, "2. Parametros Generales y Motilidad", 0, 1)
+    
     pdf.set_font("helvetica", "", 10)
-    pdf.cell(0, 6, "Concentracion Espermatica: 40.39 mill/mL", 0, 1)
-    pdf.cell(0, 6, "Dosis Seminales Viables Estimadas: 350 pajuelas", 0, 1)
-    pdf.cell(0, 6, "Motilidad Progresiva: 71.0%", 0, 1)
+    pdf.cell(120, 6, " Concentracion Espermatica: 40.39 mill/mL", 1, 0, "L", True)
+    pdf.cell(70, 6, " Motilidad Progresiva: 71.0%", 1, 1, "L", True)
+    pdf.cell(190, 6, " Dosis Seminales Viables Estimadas: 350 pajuelas", 1, 1, "L", True)
     pdf.ln(5)
 
-    # 3. Morfología YOLOv8
+    # 3. Evaluación Morfológica por Categoría (9 Clases YOLOv8)
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 7, "3. Evaluacion Morfologica por Categoria (9 Clases YOLOv8)", 0, 1)
     
@@ -158,20 +172,32 @@ def generar_pdf_oficial(toro_id, raza_val, evaluador_val, filename):
         ("Particulas / Escombros (Dirt-Particles)", "3")
     ]
 
-    pdf.set_font("helvetica", "B", 9)
-    pdf.cell(120, 6, "Categoria Morfologica", 1, 0, "L")
-    pdf.cell(70, 6, "Conteo / Porcentaje", 1, 1, "C")
+    # Cabecera de la tabla con tono gris/verdoso suave
+    pdf.set_font("helvetica", "B", 10)
+    pdf.set_fill_color(220, 230, 220)
+    pdf.cell(130, 6, " Categoria Morfologica", 1, 0, "L", True)
+    pdf.cell(60, 6, " Conteo / Porcentaje", 1, 1, "C", True)
 
-    pdf.set_font("helvetica", "", 9)
+    pdf.set_font("helvetica", "", 9.5)
     for cat, val in categorias:
-        pdf.cell(120, 5, f" {cat}", 1, 0, "L")
-        pdf.cell(70, 5, val, 1, 1, "C")
+        pdf.cell(130, 5.5, f" {cat}", 1, 0, "L")
+        pdf.cell(60, 5.5, val, 1, 1, "C")
 
-    pdf.ln(15)
-    pdf.set_font("helvetica", "I", 9)
-    pdf.set_text_color(120, 120, 120)
-    pdf.cell(0, 5, "Firma del Evaluador / Control de Calidad", 0, 1, "R")
-    pdf.cell(0, 5, "Generado por Bovi-Fertil-IA - Universidad Tecnica de Machala", 0, 1, "C")
+    pdf.ln(20)
+
+    # Bloque de Firmas al pie
+    pdf.set_font("helvetica", "", 9)
+    pdf.cell(95, 5, "------------------------------------------------------------", 0, 0, "C")
+    pdf.cell(95, 5, "------------------------------------------------------------", 0, 1, "C")
+    
+    pdf.set_font("helvetica", "B", 9)
+    pdf.cell(95, 5, "Firma del Evaluador", 0, 0, "C")
+    pdf.cell(95, 5, "Control de Calidad / Laboratorio", 0, 1, "C")
+    
+    pdf.ln(5)
+    pdf.set_font("helvetica", "I", 8.5)
+    pdf.set_text_color(130, 130, 130)
+    pdf.cell(0, 5, "Pagina 1  |  Generado por Bovi-Fertil-IA - Universidad Tecnica de Machala", 0, 1, "C")
 
     pdf.output(filename)
 
@@ -336,7 +362,7 @@ elif menu == "Análisis Microscópico":
             st.success("✅ ¡Evaluación guardada permanentemente en tu perfil!")
 
 # ------------------------------------------
-# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ + PDF DOWNLOAD)
+# 3. CÁMARA EN VIVO (DASHBOARD + INTERFAZ + PDF IDÉNTICO)
 # ------------------------------------------
 elif menu == "Cámara en Vivo (Dashboard)":
     st.header("📱 Panel de Control en Vivo (Laboratorio Móvil)")
@@ -418,7 +444,7 @@ elif menu == "Cámara en Vivo (Dashboard)":
                     mime="application/pdf"
                 )
 
-        # INTERFAZ VISUAL DEL REPORTE OFICIAL EN PANTALLA
+        # INTERFAZ VISUAL DEL REPORTE EN PANTALLA
         if st.session_state.mostrar_reporte:
             st.markdown(
                 f"""
@@ -495,7 +521,7 @@ elif menu == "Historial y Reportes":
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.write(f"**Usuario actual:** `{st.session_state.username}`")
-    st.write("Versión del software: Bovi-Fertil-IA Pro v7.5 (UI + PDF Download)")
+    st.write("Versión del software: Bovi-Fertil-IA Pro v7.6 (Exact PDF Layout)")
 
     st.markdown("### 📥 Respaldo de Datos")
     st.write(
